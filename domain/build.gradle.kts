@@ -16,7 +16,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(projects.extensionsLib)
+    implementation(projects.sourceApi)
     implementation(projects.core.common)
 
     implementation(libs.bundles.kotlinx.coroutines)
@@ -27,6 +27,7 @@ dependencies {
 
     api(libs.sqldelight.androidxPaging)
 
+    compileOnly(platform(libs.androidx.compose.bom))
     compileOnly(libs.androidx.compose.runtimeAnnotation)
 
     testImplementation(libs.bundles.test)

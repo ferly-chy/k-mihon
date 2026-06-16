@@ -1,5 +1,7 @@
 package tachiyomi.data.manga
 
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOne
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -7,6 +9,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.ActiveProfileProvider
 import tachiyomi.data.DatabaseHandler
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.UpdateStrategyColumnAdapter
 import tachiyomi.domain.library.model.LibraryManga
@@ -69,7 +72,7 @@ class MangaRepositoryImpl(
         if (mangaIds.isEmpty()) return emptyList()
 
         return handler.await {
-            mangasQueries.getNonFavoriteIds(profileProvider.activeProfileId, mangaIds).executeAsList()
+            mangasQueries.getNonFavoriteIds(profileProvider.activeProfileId, mangaIds).awaitAsList()
         }
     }
 
@@ -139,7 +142,7 @@ class MangaRepositoryImpl(
     override suspend fun setMangaCategories(mangaId: Long, categoryIds: List<Long>) {
         handler.await(inTransaction = true) {
             mangas_categoriesQueries.deleteMangaCategoryByMangaId(profileProvider.activeProfileId, mangaId)
-            categoryIds.map { categoryId ->
+            categoryIds.forEach { categoryId ->
                 mangas_categoriesQueries.insert(profileProvider.activeProfileId, mangaId, categoryId)
             }
         }
@@ -190,12 +193,12 @@ class MangaRepositoryImpl(
                     dateAdded = it.dateAdded,
                     updateStrategy = it.updateStrategy,
                     version = it.version,
+                    memo = it.memo,
                     updateTitle = it.title.isNotBlank(),
                     updateCover = !it.thumbnailUrl.isNullOrBlank(),
                     updateDetails = it.initialized,
-                )
-                    .executeAsOne()
-                    .let { MangaMapper.mapManga(it) }
+                ).awaitAsOne()
+                    .let(MangaMapper::mapManga)
             }
         }
     }
@@ -250,6 +253,7 @@ class MangaRepositoryImpl(
                     isSyncing = 0,
                     notes = value.notes,
                     profileId = profileProvider.activeProfileId,
+                    memo = value.memo?.let(MemoColumnAdapter::encode),
                 )
             }
         }

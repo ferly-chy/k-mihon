@@ -29,11 +29,11 @@ jobs:
 
           build_log_url="$JITPACK_BASE_URL/$TAG/build.log"
           artifact_urls=(
-            "$JITPACK_BASE_URL/extensions-lib/$TAG/extensions-lib-$TAG.pom"
-            "$JITPACK_BASE_URL/extensions-lib/$TAG/extensions-lib-$TAG.module"
-            "$JITPACK_BASE_URL/extensions-lib/$TAG/extensions-lib-$TAG.jar"
-            "$JITPACK_BASE_URL/extensions-lib-android/$TAG/extensions-lib-android-$TAG.module"
-            "$JITPACK_BASE_URL/extensions-lib-android/$TAG/extensions-lib-android-$TAG.aar"
+            "$JITPACK_BASE_URL/source-api/$TAG/source-api-$TAG.pom"
+            "$JITPACK_BASE_URL/source-api/$TAG/source-api-$TAG.module"
+            "$JITPACK_BASE_URL/source-api/$TAG/source-api-$TAG.jar"
+            "$JITPACK_BASE_URL/source-api-android/$TAG/source-api-android-$TAG.module"
+            "$JITPACK_BASE_URL/source-api-android/$TAG/source-api-android-$TAG.aar"
           )
 
           echo "Triggering JitPack build for $TAG"

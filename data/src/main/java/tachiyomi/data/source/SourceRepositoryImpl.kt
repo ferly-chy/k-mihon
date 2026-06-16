@@ -1,6 +1,5 @@
 package tachiyomi.data.source
 
-import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -26,21 +25,21 @@ class SourceRepositoryImpl(
 ) : SourceRepository {
 
     override fun getConfigurableSourceIds(): List<Long> {
-        return sourceManager.getCatalogueSources()
+        return sourceManager.getAll()
             .filterIsInstance<ConfigurableSource>()
             .map { it.id }
             .distinct()
     }
 
     override fun getConfigurableSourceKeys(): List<String> {
-        return sourceManager.getCatalogueSources()
+        return sourceManager.getAll()
             .filterIsInstance<ConfigurableSource>()
             .map { it.preferenceKey() }
             .distinct()
     }
 
     override fun getSources(): Flow<List<DomainSource>> {
-        return sourceManager.catalogueSources.map { sources ->
+        return sourceManager.sources.map { sources ->
             sources.map {
                 mapSourceToDomainSource(it).copy(
                     supportsLatest = it.supportsLatest,
@@ -50,7 +49,7 @@ class SourceRepositoryImpl(
     }
 
     override fun getOnlineSources(): Flow<List<DomainSource>> {
-        return sourceManager.catalogueSources.map { sources ->
+        return sourceManager.sources.map { sources ->
             sources
                 .filterIsInstance<HttpSource>()
                 .map(::mapSourceToDomainSource)
@@ -62,7 +61,7 @@ class SourceRepositoryImpl(
             profileProvider.activeProfileIdFlow.flatMapLatest { profileId ->
                 handler.subscribeToList { mangasQueries.getSourceIdWithFavoriteCount(profileId) }
             },
-            sourceManager.catalogueSources,
+            sourceManager.sources,
         ) { sourceIdWithFavoriteCount, _ -> sourceIdWithFavoriteCount }
             .map {
                 it.map { (sourceId, count) ->
@@ -76,10 +75,9 @@ class SourceRepositoryImpl(
     }
 
     override fun getSourcesWithNonLibraryManga(): Flow<List<SourceWithCount>> {
-        val sourceIdWithNonLibraryManga =
-            profileProvider.activeProfileIdFlow.flatMapLatest { profileId ->
-                handler.subscribeToList { mangasQueries.getSourceIdsWithNonLibraryManga(profileId) }
-            }
+        val sourceIdWithNonLibraryManga = profileProvider.activeProfileIdFlow.flatMapLatest { profileId ->
+            handler.subscribeToList { mangasQueries.getSourceIdsWithNonLibraryManga(profileId) }
+        }
         return sourceIdWithNonLibraryManga.map { sourceId ->
             sourceId.map { (sourceId, count) ->
                 val source = sourceManager.getOrStub(sourceId)
@@ -96,18 +94,15 @@ class SourceRepositoryImpl(
         query: String,
         filterList: FilterList,
     ): SourcePagingSource {
-        val source = sourceManager.get(sourceId) as CatalogueSource
-        return SourceSearchPagingSource(source, query, filterList)
+        return SourceSearchPagingSource(sourceManager.getOrStub(sourceId), query, filterList)
     }
 
     override fun getPopular(sourceId: Long): SourcePagingSource {
-        val source = sourceManager.get(sourceId) as CatalogueSource
-        return SourcePopularPagingSource(source)
+        return SourcePopularPagingSource(sourceManager.getOrStub(sourceId))
     }
 
     override fun getLatest(sourceId: Long): SourcePagingSource {
-        val source = sourceManager.get(sourceId) as CatalogueSource
-        return SourceLatestPagingSource(source)
+        return SourceLatestPagingSource(sourceManager.getOrStub(sourceId))
     }
 
     private fun mapSourceToDomainSource(source: Source): DomainSource = DomainSource(

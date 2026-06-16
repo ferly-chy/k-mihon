@@ -1,7 +1,8 @@
 import eu.kanade.tachiyomi.source.model.UpdateStrategy;
-import kotlin.collections.List;
 import kotlin.Boolean;
 import kotlin.String;
+import kotlin.collections.List;
+import kotlinx.serialization.json.JsonObject;
 
 CREATE TABLE mangas(
     _id INTEGER NOT NULL PRIMARY KEY,
@@ -31,6 +32,7 @@ CREATE TABLE mangas(
     version INTEGER NOT NULL DEFAULT 0,
     is_syncing INTEGER NOT NULL DEFAULT 0,
     notes TEXT NOT NULL DEFAULT "",
+    memo BLOB AS JsonObject NOT NULL DEFAULT '{}',
     FOREIGN KEY(profile_id) REFERENCES profiles (_id)
     ON DELETE CASCADE
 );
@@ -190,8 +192,13 @@ WHERE profile_id = :profileId
 AND favorite = 1;
 
 insert:
-INSERT INTO mangas(profile_id, source, url, artist, author, description, genre, title, display_name, status, thumbnail_url, favorite, last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added, update_strategy, calculate_interval, last_modified_at, version, notes)
-VALUES (:profileId, :source, :url, :artist, :author, :description, :genre, :title, :displayName, :status, :thumbnailUrl, :favorite, :lastUpdate, :nextUpdate, :initialized, :viewerFlags, :chapterFlags, :coverLastModified, :dateAdded, :updateStrategy, :calculateInterval, 0, :version, :notes);
+INSERT INTO mangas(profile_id, source, url, artist, author, description, genre, title, display_name, status, thumbnail_url, favorite, last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added, update_strategy, calculate_interval, last_modified_at, version, notes, memo)
+VALUES (:profileId, :source, :url, :artist, :author, :description, :genre, :title, :displayName, :status, :thumbnailUrl, :favorite, :lastUpdate, :nextUpdate, :initialized, :viewerFlags, :chapterFlags, :coverLastModified, :dateAdded, :updateStrategy, :calculateInterval, 0, :version, :notes, :memo);
+
+insertReturningId:
+INSERT INTO mangas(profile_id, source, url, artist, author, description, genre, title, display_name, status, thumbnail_url, favorite, last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added, update_strategy, calculate_interval, last_modified_at, version, notes, memo)
+VALUES (:profileId, :source, :url, :artist, :author, :description, :genre, :title, :displayName, :status, :thumbnailUrl, :favorite, :lastUpdate, :nextUpdate, :initialized, :viewerFlags, :chapterFlags, :coverLastModified, :dateAdded, :updateStrategy, :calculateInterval, 0, :version, :notes, :memo)
+RETURNING _id;
 
 update:
 UPDATE mangas SET
@@ -217,7 +224,8 @@ UPDATE mangas SET
     calculate_interval = coalesce(:calculateInterval, calculate_interval),
     version = coalesce(:version, version),
     is_syncing = coalesce(:isSyncing, is_syncing),
-    notes = coalesce(:notes, notes)
+    notes = coalesce(:notes, notes),
+    memo = coalesce(:memo, memo)
 WHERE _id = :mangaId
 AND profile_id = :profileId;
 
@@ -227,19 +235,16 @@ UPDATE mangas SET
 WHERE _id = :mangaId
 AND profile_id = :profileId;
 
-selectLastInsertedRowId:
-SELECT last_insert_rowid();
-
 insertNetworkManga {
     INSERT INTO mangas(
         profile_id, source, url, artist, author, description, genre, title, display_name, status, thumbnail_url, favorite,
         last_update, next_update, initialized, viewer, chapter_flags, cover_last_modified, date_added,
-        update_strategy, calculate_interval, last_modified_at, version
+        update_strategy, calculate_interval, last_modified_at, version, memo
     )
     SELECT
         :profileId, :source, :url, :artist, :author, :description, :genre, :title, NULL, :status, :thumbnailUrl, :favorite,
         :lastUpdate, :nextUpdate, :initialized, :viewerFlags, :chapterFlags, :coverLastModified, :dateAdded,
-        :updateStrategy, :calculateInterval, 0, :version
+        :updateStrategy, :calculateInterval, 0, :version, :memo
     WHERE NOT EXISTS(
         SELECT 0 FROM mangas
         WHERE profile_id = :profileId
@@ -257,7 +262,8 @@ insertNetworkManga {
         genre = CASE WHEN :updateDetails THEN :genre ELSE genre END,
         status = CASE WHEN :updateDetails THEN :status ELSE status END,
         update_strategy = CASE WHEN :updateDetails THEN :updateStrategy ELSE update_strategy END,
-        initialized = :updateDetails
+        initialized = :updateDetails,
+        memo = :memo
     WHERE profile_id = :profileId
     AND source = :source
     AND url = :url

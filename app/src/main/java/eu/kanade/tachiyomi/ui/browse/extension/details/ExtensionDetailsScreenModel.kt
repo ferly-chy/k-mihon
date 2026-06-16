@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.ui.browse.extension.details
 import android.content.Context
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import eu.kanade.domain.extension.interactor.ExtensionSourceItem
 import eu.kanade.domain.extension.interactor.GetExtensionSources
 import eu.kanade.domain.source.interactor.ToggleIncognito
 import eu.kanade.domain.source.interactor.ToggleSource
@@ -121,7 +120,8 @@ class ExtensionDetailsScreenModel(
 
         val urls = extension.sources
             .filterIsInstance<HttpSource>()
-            .mapNotNull { it.baseUrl.takeUnless { url -> url.isEmpty() } }
+            .flatMap { listOf(it.baseUrl, it.getHomeUrl()) }
+            .filter { it.isNotEmpty() }
             .distinct()
 
         val cleared = urls.sumOf {

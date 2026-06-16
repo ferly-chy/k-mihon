@@ -9,16 +9,23 @@ import eu.kanade.tachiyomi.data.anime.download.model.AnimeDownload
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.databinding.DownloadListBinding
+import eu.kanade.tachiyomi.source.model.Page
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import tachiyomi.domain.source.service.AnimeSourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import kotlin.time.Duration.Companion.milliseconds
 
 class DownloadQueueScreenModel(
     private val downloadManager: DownloadManager = Injekt.get(),
@@ -31,6 +38,7 @@ class DownloadQueueScreenModel(
 
     lateinit var controllerBinding: DownloadListBinding
     var adapter: DownloadQueueAdapter? = null
+    private val progressJobs = mutableMapOf<Download, Job>()
 
     val listener = object : DownloadQueueAdapter.DownloadQueueItemListener {
         override fun onItemReleased(position: Int) {
@@ -190,6 +198,55 @@ class DownloadQueueScreenModel(
         getHolder(download.chapter.id)?.notifyProgressText()
     }
 
+    /**
+     * Observe the progress of a download and notify the view.
+     *
+     * @param download the download to observe its progress.
+     */
+    private fun launchProgressJob(download: Download) {
+        val job = screenModelScope.launch {
+            while (download.pages == null) {
+                delay(50.milliseconds)
+            }
+
+            val progressFlows = download.pages!!.map(Page::progressFlow)
+            combine(progressFlows, Array<Int>::sum)
+                .distinctUntilChanged()
+                .debounce(50.milliseconds)
+                .collectLatest {
+                    onUpdateProgress(download)
+                }
+        }
+
+        // Avoid leaking jobs
+        progressJobs.remove(download)?.cancel()
+
+        progressJobs[download] = job
+    }
+
+    /**
+     * Unsubscribes the given download from the progress subscriptions.
+     *
+     * @param download the download to unsubscribe.
+     */
+    private fun cancelProgressJob(download: Download) {
+        progressJobs.remove(download)?.cancel()
+    }
+
+    /**
+     * Called when the progress of a download changes.
+     *
+     * @param download the download whose progress has changed.
+     */
+    private fun onUpdateProgress(download: Download) {
+        getHolder(download.chapter.id)?.notifyProgress()
+    }
+
+    /**
+     * Called when a page of a download is downloaded.
+     *
+     * @param download the download whose page has been downloaded.
+     */
     fun onUpdateDownloadedPages(download: Download) {
         getHolder(download.chapter.id)?.notifyProgress()
         getHolder(download.chapter.id)?.notifyProgressText()

@@ -13,7 +13,7 @@ import tachiyomi.presentation.core.components.Badge
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
-internal fun DownloadsBadge(count: Long) {
+internal fun DownloadsBadge(count: Int) {
     if (count > 0) {
         Badge(
             text = "$count",

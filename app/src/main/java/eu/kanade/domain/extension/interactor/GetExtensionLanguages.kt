@@ -18,11 +18,7 @@ class GetExtensionLanguages(
             availableExtensions
                 .filterIsInstance<eu.kanade.tachiyomi.extension.model.Extension.AvailableManga>()
                 .flatMap { ext ->
-                    if (ext.sources.isEmpty()) {
-                        listOf(ext.lang)
-                    } else {
-                        ext.sources.map { it.lang }
-                    }
+                    ext.sources.map { it.lang }
                 }
                 .distinct()
                 .sortedWith(

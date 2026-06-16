@@ -7,7 +7,6 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.core.preference.PreferenceMutableState
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.anime.model.toMangaCover
-import eu.kanade.presentation.components.SEARCH_DEBOUNCE_MILLIS
 import eu.kanade.presentation.library.components.LibraryToolbarTitle
 import eu.kanade.tachiyomi.source.model.SourceItemOrientation
 import eu.kanade.tachiyomi.source.sourceItemOrientation
@@ -72,6 +71,7 @@ import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 class AnimeLibraryScreenModel(
     private val animeRepository: AnimeRepository = Injekt.get(),
@@ -115,7 +115,7 @@ class AnimeLibraryScreenModel(
 
         screenModelScope.launchIO {
             combine(
-                state.map { it.searchQuery }.distinctUntilChanged().debounce(SEARCH_DEBOUNCE_MILLIS),
+                state.map { it.searchQuery }.distinctUntilChanged().debounce(0.25.seconds),
                 animeRepository.getFavoritesAsFlow(),
                 getMergedAnime.subscribeAll(),
                 getCategories.subscribe(),

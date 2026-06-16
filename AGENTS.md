@@ -1,7 +1,7 @@
 # Repo Notes
 
 ## Layout
-- `app/` is the runtime app. Shared code lives in `core/*`, `data`, `domain`, `presentation-*`, `source-*`, `i18n`, `extensions-lib`, `telemetry`, and `macrobenchmark`.
+- `app/` is the runtime app. Shared code lives in `core/*`, `data`, `domain`, `presentation-*`, `source-*`, `i18n`, `telemetry`, and `macrobenchmark`.
 - Custom Gradle plugins and tasks live in `gradle/build-logic/`. `settings.gradle.kts` enables type-safe project accessors and rejects project-level repositories, so add repos only there and use catalog/accessor entries instead of hardcoded versions or string project paths.
 
 ## Toolchain
@@ -20,4 +20,4 @@
 - `i18n/src/commonMain/moko-resources/**/strings.xml` and `plurals.xml` drive the generated `@xml/locales_config`; `base` maps to `en`, and empty locale resources are skipped.
 - App namespace is `eu.kanade.tachiyomi`, but `applicationId` is `app.mihon`.
 - Gradle properties toggle build features: `include-telemetry`, `enable-updater`, `disable-code-shrink`, `include-dependency-info`.
-- Releases are tag-driven: `v*` creates the GitHub release/APK; `sdk-*` warms JitPack for `extensions-lib`, which JitPack builds on OpenJDK 17 via `:extensions-lib:publishToMavenLocal`.
+- Releases are tag-driven: `v*` creates the GitHub release/APK; `sdk-*` warms JitPack for `source-api`, which JitPack builds on OpenJDK 17 via `:source-api:publishToMavenLocal`.

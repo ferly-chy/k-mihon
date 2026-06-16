@@ -8,13 +8,13 @@ import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.create.BackupCreateJob
 import eu.kanade.tachiyomi.data.backup.models.BackupAnime
 import eu.kanade.tachiyomi.data.backup.models.BackupCategory
-import eu.kanade.tachiyomi.data.backup.models.BackupExtensionRepos
+import eu.kanade.tachiyomi.data.backup.models.BackupExtensionStore
 import eu.kanade.tachiyomi.data.backup.models.BackupManga
 import eu.kanade.tachiyomi.data.backup.models.BackupPreference
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
 import eu.kanade.tachiyomi.data.backup.restore.restorers.AnimeRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.CategoriesRestorer
-import eu.kanade.tachiyomi.data.backup.restore.restorers.ExtensionRepoRestorer
+import eu.kanade.tachiyomi.data.backup.restore.restorers.ExtensionStoreRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
@@ -46,7 +46,7 @@ class BackupRestorer(
 
     private val categoriesRestorer: CategoriesRestorer = CategoriesRestorer(),
     private val preferenceRestorer: PreferenceRestorer = PreferenceRestorer(context),
-    private val extensionRepoRestorer: ExtensionRepoRestorer = ExtensionRepoRestorer(),
+    private val extensionStoreRestorer: ExtensionStoreRestorer = ExtensionStoreRestorer(),
     private val mangaRestorer: MangaRestorer = MangaRestorer(),
     private val animeRestorer: AnimeRestorer = AnimeRestorer(),
     private val profileDatabase: ProfileDatabase = Injekt.get(),
@@ -94,7 +94,7 @@ class BackupRestorer(
                 backupProfiles = backup.backupProfiles,
                 activeProfileUuid = backup.activeProfileUuid,
                 backupPreferences = backup.backupPreferences,
-                backupExtensionRepo = backup.backupExtensionRepo,
+                backupExtensionStores = backup.backupExtensionStores,
                 options = options,
             )
             return
@@ -110,8 +110,8 @@ class BackupRestorer(
         if (options.appSettings) {
             restoreAmount += 1
         }
-        if (options.extensionRepoSettings) {
-            restoreAmount += backup.backupExtensionRepo.size
+        if (options.extensionStores) {
+            restoreAmount += backup.backupExtensionStores.size
         }
         if (options.sourceSettings) {
             restoreAmount += 1
@@ -131,8 +131,8 @@ class BackupRestorer(
                 restoreManga(backup.backupManga, if (options.categories) backup.backupCategories else emptyList())
                 restoreAnime(backup.backupAnime, if (options.categories) backup.backupCategories else emptyList())
             }
-            if (options.extensionRepoSettings) {
-                restoreExtensionRepos(backup.backupExtensionRepo)
+            if (options.extensionStores) {
+                restoreExtensionStores(backup.backupExtensionStores)
             }
 
             // TODO: optionally trigger online library + tracker update
@@ -143,7 +143,7 @@ class BackupRestorer(
         backupProfiles: List<ProfileScopedBackup>,
         activeProfileUuid: String?,
         backupPreferences: List<BackupPreference>,
-        backupExtensionRepo: List<BackupExtensionRepos>,
+        backupExtensionStores: List<BackupExtensionStore>,
         options: RestoreOptions,
     ) {
         val previousProfileId = profileManager.activeProfileId
@@ -163,8 +163,8 @@ class BackupRestorer(
         if (options.sourceSettings) {
             restoreAmount += backupProfiles.size
         }
-        if (options.extensionRepoSettings) {
-            restoreAmount += backupExtensionRepo.size
+        if (options.extensionStores) {
+            restoreAmount += backupExtensionStores.size
         }
 
         for (profileBackup in backupProfiles) {
@@ -273,17 +273,17 @@ class BackupRestorer(
             )
         }
 
-        if (options.extensionRepoSettings) {
-            backupExtensionRepo.forEach {
+        if (options.extensionStores) {
+            backupExtensionStores.forEach {
                 try {
-                    extensionRepoRestorer(it)
+                    extensionStoreRestorer(it)
                 } catch (e: Exception) {
-                    errors.add(Date() to "Error Adding Repo: ${it.name} : ${e.message}")
+                    errors.add(Date() to "Error Adding Store: ${it.name} : ${e.message}")
                 }
 
                 restoreProgress += 1
                 notifier.showRestoreProgress(
-                    context.stringResource(MR.strings.extensionRepo_settings),
+                    context.stringResource(MR.strings.extensionStores),
                     restoreProgress,
                     restoreAmount,
                     isSync,
@@ -435,22 +435,22 @@ class BackupRestorer(
         )
     }
 
-    private fun CoroutineScope.restoreExtensionRepos(
-        backupExtensionRepo: List<BackupExtensionRepos>,
+    private fun CoroutineScope.restoreExtensionStores(
+        backupExtensionStores: List<BackupExtensionStore>,
     ) = launch {
-        backupExtensionRepo
+        backupExtensionStores
             .forEach {
                 ensureActive()
 
                 try {
-                    extensionRepoRestorer(it)
+                    extensionStoreRestorer(it)
                 } catch (e: Exception) {
                     errors.add(Date() to "Error Adding Repo: ${it.name} : ${e.message}")
                 }
 
                 restoreProgress += 1
                 notifier.showRestoreProgress(
-                    context.stringResource(MR.strings.extensionRepo_settings),
+                    context.stringResource(MR.strings.extensionStores),
                     restoreProgress,
                     restoreAmount,
                     isSync,

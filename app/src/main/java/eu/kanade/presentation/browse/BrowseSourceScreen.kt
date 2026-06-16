@@ -24,7 +24,6 @@ import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.SourceItemOrientation
 import eu.kanade.tachiyomi.source.sourceItemOrientation
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.StateFlow
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.library.model.LibraryDisplayMode
@@ -88,7 +87,7 @@ fun BrowseSourceContent(
                 else -> stringResource(MR.strings.no_results_found)
             },
             actions = if (source is LocalSource) {
-                persistentListOf(
+                listOf(
                     EmptyScreenAction(
                         stringRes = MR.strings.local_source_help_guide,
                         icon = Icons.AutoMirrored.Outlined.HelpOutline,
@@ -96,7 +95,7 @@ fun BrowseSourceContent(
                     ),
                 )
             } else {
-                persistentListOf(
+                listOf(
                     EmptyScreenAction(
                         stringRes = MR.strings.action_retry,
                         icon = Icons.Outlined.Refresh,

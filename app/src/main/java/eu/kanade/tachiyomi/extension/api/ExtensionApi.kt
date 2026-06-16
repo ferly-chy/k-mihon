@@ -3,41 +3,27 @@ package eu.kanade.tachiyomi.extension.api
 import android.content.Context
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.extension.model.Extension
-import eu.kanade.tachiyomi.extension.model.ExtensionType
 import eu.kanade.tachiyomi.extension.model.InstallStep
 import eu.kanade.tachiyomi.extension.model.LoadResult
 import eu.kanade.tachiyomi.extension.util.ExtensionLoader
-import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.NetworkHelper
-import eu.kanade.tachiyomi.network.awaitSuccess
-import eu.kanade.tachiyomi.network.parseAs
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import logcat.LogPriority
 import mihon.core.common.GlobalCustomPreferences
-import mihon.domain.extensionrepo.interactor.GetExtensionRepo
-import mihon.domain.extensionrepo.interactor.UpdateExtensionRepo
-import mihon.domain.extensionrepo.model.ExtensionRepo
+import mihon.domain.extension.interactor.UpdateExtensionStores
+import mihon.domain.extension.repository.ExtensionStoreRepository
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
-import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.injectLazy
 import java.time.Instant
 import kotlin.time.Duration.Companion.days
 
 internal class ExtensionApi {
 
-    private val networkService: NetworkHelper by injectLazy()
+    private val repository: ExtensionStoreRepository by injectLazy()
     private val preferenceStore: PreferenceStore by injectLazy()
-    private val getExtensionRepo: GetExtensionRepo by injectLazy()
-    private val updateExtensionRepo: UpdateExtensionRepo by injectLazy()
+    private val updateExtensionStores: UpdateExtensionStores by injectLazy()
     private val extensionManager: ExtensionManager by injectLazy()
     private val customPreferences: GlobalCustomPreferences by injectLazy()
-    private val json: Json by injectLazy()
 
     private val lastExtCheck: Preference<Long> by lazy {
         preferenceStore.getLong(Preference.appStateKey("last_ext_check"), 0)
@@ -49,35 +35,10 @@ internal class ExtensionApi {
     )
 
     suspend fun findExtensions(forceRefresh: Boolean = false): List<Extension.Available> {
-        return withIOContext {
-            getExtensionRepo.getAll()
-                .map { async { getExtensions(it, forceRefresh) } }
-                .awaitAll()
-                .flatten()
+        if (forceRefresh) {
+            updateExtensionStores()
         }
-    }
-
-    private suspend fun getExtensions(extRepo: ExtensionRepo, forceRefresh: Boolean): List<Extension.Available> {
-        val repoBaseUrl = extRepo.baseUrl
-        return try {
-            val request = if (forceRefresh) {
-                GET("$repoBaseUrl/index.min.json", cache = okhttp3.CacheControl.FORCE_NETWORK)
-            } else {
-                GET("$repoBaseUrl/index.min.json")
-            }
-            val response = networkService.client
-                .newCall(request)
-                .awaitSuccess()
-
-            with(json) {
-                response
-                    .parseAs<List<ExtensionJsonObject>>()
-                    .toExtensions(repoBaseUrl)
-            }
-        } catch (e: Throwable) {
-            logcat(LogPriority.ERROR, e) { "Failed to get extensions from $repoBaseUrl" }
-            emptyList()
-        }
+        return withIOContext { repository.fetchExtensions() }
     }
 
     suspend fun checkForUpdates(
@@ -91,8 +52,7 @@ internal class ExtensionApi {
             return null
         }
 
-        // Update extension repo details
-        updateExtensionRepo.awaitAll()
+        updateExtensionStores()
 
         val extensions = if (fromAvailableExtensionList) {
             extensionManager.availableExtensionsFlow.value
@@ -140,12 +100,11 @@ internal class ExtensionApi {
             return updateCandidates.map { it.installed }
         }
 
-        return autoUpdateExtensions(context, extensions, updateCandidates)
+        return autoUpdateExtensions(context, updateCandidates)
     }
 
     private suspend fun autoUpdateExtensions(
         context: Context,
-        extensions: List<Extension.Available>,
         updateCandidates: List<UpdateCandidate>,
     ): List<Extension.Installed> {
         val updatedExtensions = mutableListOf<Extension.Installed>()
@@ -183,93 +142,4 @@ internal class ExtensionApi {
 
         return updateCandidates.map { it.installed }
     }
-
-    private fun List<ExtensionJsonObject>.toExtensions(repoUrl: String): List<Extension.Available> {
-        return this
-            .filter { ExtensionLoader.isLibVersionCompatible(it.version) }
-            .map { extensionJson ->
-                when (extensionJson.toExtensionType()) {
-                    ExtensionType.MANGA -> Extension.AvailableManga(
-                        name = extensionJson.name.substringAfter("Tachiyomi: "),
-                        pkgName = extensionJson.pkg,
-                        versionName = extensionJson.version,
-                        versionCode = extensionJson.code,
-                        libVersion = extensionJson.extractLibVersion(),
-                        lang = extensionJson.lang,
-                        isNsfw = extensionJson.nsfw == 1,
-                        sources = extensionJson.sources?.map(mangaExtensionSourceMapper).orEmpty(),
-                        apkName = extensionJson.apk,
-                        iconUrl = "$repoUrl/icon/${extensionJson.pkg}.png",
-                        repoUrl = repoUrl,
-                    )
-
-                    ExtensionType.ANIME -> Extension.AvailableAnime(
-                        name = extensionJson.name.substringAfter("Tachiyomi: "),
-                        pkgName = extensionJson.pkg,
-                        versionName = extensionJson.version,
-                        versionCode = extensionJson.code,
-                        libVersion = extensionJson.extractLibVersion(),
-                        lang = extensionJson.lang,
-                        isNsfw = extensionJson.nsfw == 1,
-                        sources = extensionJson.sources?.map(animeExtensionSourceMapper).orEmpty(),
-                        apkName = extensionJson.apk,
-                        iconUrl = "$repoUrl/icon/${extensionJson.pkg}.png",
-                        repoUrl = repoUrl,
-                    )
-                }
-            }
-    }
-
-    fun getApkUrl(extension: Extension.Available): String {
-        return "${extension.repoUrl}/apk/${extension.apkName}"
-    }
-
-    private fun ExtensionJsonObject.extractLibVersion(): Double {
-        return version.substringBeforeLast('.').toDouble()
-    }
-
-    private fun ExtensionJsonObject.toExtensionType(): ExtensionType = extensionTypeFromRepoValue(type)
-}
-
-internal fun extensionTypeFromRepoValue(type: String?): ExtensionType {
-    return ExtensionType.fromMetadataValue(type) ?: ExtensionType.MANGA
-}
-
-@Serializable
-private data class ExtensionJsonObject(
-    val name: String,
-    val pkg: String,
-    val apk: String,
-    val lang: String,
-    val code: Long,
-    val version: String,
-    val nsfw: Int,
-    val type: String? = null,
-    val sources: List<ExtensionSourceJsonObject>?,
-)
-
-@Serializable
-private data class ExtensionSourceJsonObject(
-    val id: Long,
-    val lang: String,
-    val name: String,
-    val baseUrl: String,
-)
-
-private val mangaExtensionSourceMapper: (ExtensionSourceJsonObject) -> Extension.AvailableManga.Source = {
-    Extension.AvailableManga.Source(
-        id = it.id,
-        lang = it.lang,
-        name = it.name,
-        baseUrl = it.baseUrl,
-    )
-}
-
-private val animeExtensionSourceMapper: (ExtensionSourceJsonObject) -> Extension.AvailableAnime.Source = {
-    Extension.AvailableAnime.Source(
-        id = it.id,
-        lang = it.lang,
-        name = it.name,
-        baseUrl = it.baseUrl,
-    )
 }

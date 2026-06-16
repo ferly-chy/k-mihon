@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.data.backup.models.backupTrackMapper
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import tachiyomi.data.ActiveProfileProvider
 import tachiyomi.data.DatabaseHandler
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.history.interactor.GetHistory
@@ -57,7 +58,7 @@ class MangaBackupCreator(
 
         if (options.chapters) {
             // Backup all the chapters
-            handler.awaitList {
+            val chapters = handler.awaitList {
                 chaptersQueries.getChaptersByMangaId(
                     profileId = profileId,
                     mangaId = manga.id,
@@ -65,8 +66,9 @@ class MangaBackupCreator(
                     mapper = backupChapterMapper,
                 )
             }
-                .takeUnless(List<BackupChapter>::isEmpty)
-                ?.let { mangaObject.chapters = it }
+            if (chapters.isNotEmpty()) {
+                mangaObject.chapters = chapters
+            }
         }
 
         if (options.categories) {
@@ -174,4 +176,5 @@ private fun Manga.toBackupManga() =
         version = this.version,
         notes = this.notes,
         initialized = this.initialized,
+        memo = MemoColumnAdapter.encode(this.memo),
     )

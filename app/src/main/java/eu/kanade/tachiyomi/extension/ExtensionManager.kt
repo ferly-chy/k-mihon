@@ -17,7 +17,6 @@ import eu.kanade.tachiyomi.extension.util.ExtensionInstaller.UserActionBehavior
 import eu.kanade.tachiyomi.extension.util.ExtensionLoader
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
@@ -28,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.domain.extension.model.ExtensionStore
 import mihon.feature.profiles.core.ProfileAwareStore
 import mihon.feature.profiles.core.ProfileConstants
 import mihon.feature.profiles.core.ProfileDatabase
@@ -50,15 +50,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class ExtensionManager(
     private val context: Context,
+    private val scope: CoroutineScope,
     private val preferences: SourcePreferences = Injekt.get(),
     private val globalPreferences: GlobalSourcePreferences = Injekt.get(),
     private val trustExtension: TrustExtension = Injekt.get(),
     private val profileDatabase: ProfileDatabase = Injekt.get(),
     private val profileStore: ProfileAwareStore = Injekt.get(),
 ) {
-
-    val scope = CoroutineScope(SupervisorJob())
-
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
@@ -70,7 +68,7 @@ class ExtensionManager(
     /**
      * The installer which installs, updates and uninstalls the extensions.
      */
-    private val installer by lazy { ExtensionInstaller(context) }
+    private val installer by lazy { ExtensionInstaller(context, scope) }
 
     private val iconMap = mutableMapOf<String, Drawable>()
 
@@ -310,7 +308,7 @@ class ExtensionManager(
      */
     fun installExtension(extension: Extension.Available): Flow<InstallStep> {
         return installer.downloadAndInstall(
-            api.getApkUrl(extension),
+            extension.apkUrl,
             extension,
             UserActionBehavior.LaunchPrompt,
         )
@@ -318,7 +316,7 @@ class ExtensionManager(
 
     internal fun installExtensionForAutoUpdate(extension: Extension.Available): Flow<InstallStep> {
         return installer.downloadAndInstall(
-            api.getApkUrl(extension),
+            extension.apkUrl,
             extension,
             UserActionBehavior.MarkAsRequiresUserAction,
         )
@@ -548,7 +546,7 @@ class ExtensionManager(
                 result.extension
                     .withUpdate(hasUpdate = current?.hasUpdate ?: false)
                     .withObsolete(isObsolete = current?.isObsolete ?: false)
-                    .withRepoUrl(repoUrl = current?.repoUrl)
+                    .withStore(store = current?.store)
             }
             .associateBy { it.pkgName }
 
@@ -581,7 +579,7 @@ class ExtensionManager(
                 extension
                     .withUpdate(hasUpdate = extension.updateExists(availableExtension))
                     .withObsolete(isObsolete = false)
-                    .withRepoUrl(repoUrl = availableExtension.repoUrl)
+                    .withStore(store = availableExtension.store)
             }
         }
     }
@@ -600,10 +598,10 @@ class ExtensionManager(
         }
     }
 
-    private fun Extension.Installed.withRepoUrl(repoUrl: String?): Extension.Installed {
+    private fun Extension.Installed.withStore(store: ExtensionStore?): Extension.Installed {
         return when (this) {
-            is Extension.InstalledManga -> copy(repoUrl = repoUrl)
-            is Extension.InstalledAnime -> copy(repoUrl = repoUrl)
+            is Extension.InstalledManga -> copy(store = store)
+            is Extension.InstalledAnime -> copy(store = store)
         }
     }
 

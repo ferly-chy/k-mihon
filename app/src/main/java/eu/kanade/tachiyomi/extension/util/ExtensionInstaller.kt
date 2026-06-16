@@ -12,17 +12,16 @@ import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import logcat.LogPriority
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -36,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 internal class ExtensionInstaller(
     private val context: Context,
+    private val scope: CoroutineScope,
 ) {
 
     enum class UserActionBehavior {
@@ -43,7 +43,6 @@ internal class ExtensionInstaller(
         MarkAsRequiresUserAction,
     }
 
-    private val scope = CoroutineScope(Dispatchers.IO)
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val activeSteps = ConcurrentHashMap<Long, MutableStateFlow<InstallStep>>()
     private val downloadPackageNames = ConcurrentHashMap<Long, String>()
@@ -74,7 +73,7 @@ internal class ExtensionInstaller(
         downloadPackageNames[downloadId] = extension.pkgName
         packageInstallSteps.update { it + (extension.pkgName to InstallStep.Pending) }
 
-        val job = scope.launch {
+        val job = scope.launchIO {
             val tmpFile = File(context.cacheDir, "extension_${extension.pkgName}.apk")
             try {
                 updateInstallStep(downloadId, InstallStep.Downloading)

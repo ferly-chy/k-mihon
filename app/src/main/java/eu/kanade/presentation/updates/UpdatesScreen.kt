@@ -27,7 +27,6 @@ import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppSnackbarHost
 import eu.kanade.presentation.manga.components.MangaBottomActionMenu
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -192,7 +191,7 @@ private fun UpdatesAppBar(
         onCancelActionMode = onCancelActionMode,
         actionModeActions = {
             AppBarActions(
-                persistentListOf(
+                listOf(
                     AppBar.Action(
                         title = stringResource(MR.strings.action_select_all),
                         icon = Icons.Outlined.SelectAll,

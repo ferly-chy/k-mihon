@@ -3,23 +3,52 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 plugins {
     alias(mihonx.plugins.kotlin.multiplatform)
     alias(mihonx.plugins.spotless)
+
+    alias(libs.plugins.kotlin.serialization)
+    id("maven-publish")
 }
 
+group = "com.github.kiryl-kvit.k-mihon"
+version = providers.gradleProperty("sourceApiVersion")
+    .orElse(System.getenv("VERSION") ?: "local-SNAPSHOT")
+    .get()
+
 kotlin {
+    @Suppress("UnstableApiUsage")
     android {
         namespace = "eu.kanade.tachiyomi.source"
-
-        defaultConfig {
-            consumerProguardFile("consumer-proguard.pro")
+        optimization {
+            consumerKeepRules.apply {
+                publish = true
+                file("consumer-proguard.pro")
+            }
         }
+
+        // TODO(antsy): Remove when https://youtrack.jetbrains.com/issue/KT-83319 is resolved
+        withHostTest { }
+    }
+
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    dependencies {
+        implementation(projects.core.common)
+
+        api(libs.kotlinx.serialization.json)
+        api(libs.kotlinx.serialization.jsonOkio)
+        api(libs.injekt)
+        api(libs.rxJava)
+        api(libs.jsoup)
+
+        implementation(platform(libs.androidx.compose.bom))
+        implementation(libs.androidx.compose.runtime)
     }
 
     sourceSets {
-        commonMain {
-            kotlin.setSrcDirs(emptyList<String>())
-        }
         androidMain {
-            kotlin.setSrcDirs(emptyList<String>())
+            dependencies {
+                implementation(projects.i18n)
+                api(libs.androidx.preference)
+                implementation(libs.androidx.annotation)
+            }
         }
     }
 
@@ -27,8 +56,4 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
-}
-
-dependencies {
-    api(projects.extensionsLib)
 }

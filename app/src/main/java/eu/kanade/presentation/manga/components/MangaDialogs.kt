@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import eu.kanade.tachiyomi.ui.manga.MangaScreenModel
 import eu.kanade.tachiyomi.util.system.isReleaseBuildType
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentList
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.model.Manga
@@ -145,7 +144,7 @@ fun SetIntervalDialog(
                                     it.toString()
                                 }
                             }
-                            .toImmutableList()
+
                         WheelTextPicker(
                             items = items,
                             size = size,

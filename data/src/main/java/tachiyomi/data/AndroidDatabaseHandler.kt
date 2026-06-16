@@ -3,6 +3,9 @@ package tachiyomi.data
 import androidx.paging.PagingSource
 import app.cash.sqldelight.ExecutableQuery
 import app.cash.sqldelight.Query
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOne
+import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOne
@@ -30,35 +33,35 @@ class AndroidDatabaseHandler(
         inTransaction: Boolean,
         block: suspend Database.() -> Query<T>,
     ): List<T> {
-        return dispatch(inTransaction) { block(db).executeAsList() }
+        return dispatch(inTransaction) { block(db).awaitAsList() }
     }
 
     override suspend fun <T : Any> awaitOne(
         inTransaction: Boolean,
         block: suspend Database.() -> Query<T>,
     ): T {
-        return dispatch(inTransaction) { block(db).executeAsOne() }
+        return dispatch(inTransaction) { block(db).awaitAsOne() }
     }
 
     override suspend fun <T : Any> awaitOneExecutable(
         inTransaction: Boolean,
         block: suspend Database.() -> ExecutableQuery<T>,
     ): T {
-        return dispatch(inTransaction) { block(db).executeAsOne() }
+        return dispatch(inTransaction) { block(db).awaitAsOne() }
     }
 
     override suspend fun <T : Any> awaitOneOrNull(
         inTransaction: Boolean,
         block: suspend Database.() -> Query<T>,
     ): T? {
-        return dispatch(inTransaction) { block(db).executeAsOneOrNull() }
+        return dispatch(inTransaction) { block(db).awaitAsOneOrNull() }
     }
 
     override suspend fun <T : Any> awaitOneOrNullExecutable(
         inTransaction: Boolean,
         block: suspend Database.() -> ExecutableQuery<T>,
     ): T? {
-        return dispatch(inTransaction) { block(db).executeAsOneOrNull() }
+        return dispatch(inTransaction) { block(db).awaitAsOneOrNull() }
     }
 
     override fun <T : Any> subscribeToList(block: Database.() -> Query<T>): Flow<List<T>> {
@@ -78,8 +81,7 @@ class AndroidDatabaseHandler(
         queryProvider: Database.(Long, Long) -> Query<T>,
     ): PagingSource<Long, T> {
         return QueryPagingSource(
-            handler = this,
-            countQuery = countQuery,
+            countQuery = { countQuery(db) },
             queryProvider = { limit, offset ->
                 queryProvider.invoke(db, limit, offset)
             },

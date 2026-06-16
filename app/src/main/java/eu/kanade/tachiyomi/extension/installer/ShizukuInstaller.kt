@@ -147,7 +147,7 @@ internal class ShizukuInstaller(
             service,
             receiver,
             IntentFilter(ACTION_INSTALL_RESULT),
-            ContextCompat.RECEIVER_EXPORTED,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
         )
 
         initShizuku()

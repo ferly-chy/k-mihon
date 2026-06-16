@@ -1,5 +1,6 @@
 package tachiyomi.data.anime
 
+import app.cash.sqldelight.async.coroutines.awaitAsOne
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -34,7 +35,7 @@ class AnimeEpisodeRepositoryImpl(
                         dateUpload = episode.dateUpload,
                         version = episode.version,
                     )
-                    val lastInsertId = anime_episodesQueries.selectLastInsertedRowId().executeAsOne()
+                    val lastInsertId = anime_episodesQueries.selectLastInsertedRowId().awaitAsOne()
                     episode.copy(id = lastInsertId)
                 }
             }

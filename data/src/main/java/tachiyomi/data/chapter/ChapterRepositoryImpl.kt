@@ -1,12 +1,15 @@
 package tachiyomi.data.chapter
 
+import app.cash.sqldelight.async.coroutines.awaitAsOne
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.serialization.json.JsonObject
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.toLong
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.ActiveProfileProvider
 import tachiyomi.data.DatabaseHandler
+import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.model.ChapterUpdate
 import tachiyomi.domain.chapter.repository.ChapterRepository
@@ -20,7 +23,7 @@ class ChapterRepositoryImpl(
         return try {
             handler.await(inTransaction = true) {
                 chapters.map { chapter ->
-                    chaptersQueries.insert(
+                    val chapterId = chaptersQueries.insertReturningId(
                         profileId = profileProvider.activeProfileId,
                         mangaId = chapter.mangaId,
                         url = chapter.url,
@@ -34,9 +37,9 @@ class ChapterRepositoryImpl(
                         dateFetch = chapter.dateFetch,
                         dateUpload = chapter.dateUpload,
                         version = chapter.version,
-                    )
-                    val lastInsertId = chaptersQueries.selectLastInsertedRowId().executeAsOne()
-                    chapter.copy(id = lastInsertId)
+                        memo = chapter.memo,
+                    ).awaitAsOne()
+                    chapter.copy(id = chapterId)
                 }
             }
         } catch (e: Exception) {
@@ -72,6 +75,7 @@ class ChapterRepositoryImpl(
                     version = chapterUpdate.version,
                     isSyncing = 0,
                     profileId = profileProvider.activeProfileId,
+                    memo = chapterUpdate.memo?.let(MemoColumnAdapter::encode),
                 )
             }
         }
@@ -150,10 +154,10 @@ class ChapterRepositoryImpl(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun mapChapter(
         id: Long,
-        @Suppress("UNUSED_PARAMETER")
-        profileId: Long,
+        @Suppress("UNUSED_PARAMETER") profileId: Long,
         mangaId: Long,
         url: String,
         name: String,
@@ -167,8 +171,8 @@ class ChapterRepositoryImpl(
         dateUpload: Long,
         lastModifiedAt: Long,
         version: Long,
-        @Suppress("UNUSED_PARAMETER")
-        isSyncing: Long,
+        @Suppress("UNUSED_PARAMETER") isSyncing: Long,
+        memo: JsonObject,
     ): Chapter = Chapter(
         id = id,
         mangaId = mangaId,
@@ -184,5 +188,6 @@ class ChapterRepositoryImpl(
         scanlator = scanlator,
         lastModifiedAt = lastModifiedAt,
         version = version,
+        memo = memo,
     )
 }

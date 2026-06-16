@@ -1,5 +1,6 @@
 package tachiyomi.data.anime
 
+import app.cash.sqldelight.async.coroutines.awaitAsOne
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
@@ -139,7 +140,7 @@ class AnimeRepositoryImpl(
                     updateCover = !it.thumbnailUrl.isNullOrBlank(),
                     updateDetails = it.initialized,
                 )
-                    .executeAsOne()
+                    .awaitAsOne()
                     .let { row -> AnimeMapper.mapAnime(row) }
             }
         }

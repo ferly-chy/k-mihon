@@ -16,7 +16,7 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.ExtensionScreen
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.TabContent
-import eu.kanade.presentation.more.settings.screen.browse.ExtensionReposScreen
+import eu.kanade.presentation.more.settings.screen.browse.ExtensionStoresScreen
 import eu.kanade.tachiyomi.extension.model.Extension
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.isPackageInstalled
@@ -40,8 +40,8 @@ fun animeExtensionsTab(
         searchEnabled = true,
         actions = persistentListOf(
             AppBar.OverflowAction(
-                title = stringResource(MR.strings.label_extension_repos),
-                onClick = { navigator.push(ExtensionReposScreen()) },
+                title = stringResource(MR.strings.extensionStores),
+                onClick = { navigator.push(ExtensionStoresScreen()) },
             ),
         ),
         content = { contentPadding, _ ->

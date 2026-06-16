@@ -1,8 +1,10 @@
 package eu.kanade.tachiyomi.ui.library
 
+import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.source.model.SourceItemOrientation
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.presentationTitle
+import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.source.local.LocalSource
 
 private const val LOCAL_SOURCE_ID_ALIAS = "local"
@@ -10,12 +12,13 @@ private const val MULTI_SOURCE_ID_ALIAS = "multi"
 
 data class LibraryItem(
     val libraryManga: LibraryManga,
-    val downloadCount: Long = -1,
-    val unreadCount: Long = -1,
-    val isLocal: Boolean = false,
+    val downloadCount: Int,
+    val unreadCount: Long,
+    val isLocal: Boolean,
     val sourceLanguage: String = "",
     val sourceName: String,
     val sourceItemOrientation: SourceItemOrientation = SourceItemOrientation.VERTICAL,
+    val badges: Badges,
 ) {
     val id: Long = libraryManga.id
 
@@ -25,7 +28,9 @@ data class LibraryItem(
      * @param constraint the query to check.
      * @return true if the manga matches the query, false otherwise.
      */
-    fun matches(constraint: String): Boolean {
+    fun matches(constraint: String, sourceManager: SourceManager): Boolean {
+        val source = sourceManager.getOrStub(libraryManga.manga.source)
+        val sourceName by lazy { source.getNameForMangaInfo() }
         if (constraint.startsWith("id:", true)) {
             return id == constraint.substringAfter("id:").toLongOrNull()
         } else if (constraint.startsWith("src:", true)) {
@@ -69,4 +74,11 @@ data class LibraryItem(
             predicate(constraint)
         }
     }
+
+    data class Badges(
+        val downloadCount: Int,
+        val unreadCount: Long,
+        val isLocal: Boolean,
+        val sourceLanguage: String,
+    )
 }

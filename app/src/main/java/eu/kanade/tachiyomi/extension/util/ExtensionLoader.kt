@@ -215,7 +215,7 @@ internal object ExtensionLoader {
                         isShared = true,
                     )
                 }
-        } catch (error: PackageManager.NameNotFoundException) {
+        } catch (_: PackageManager.NameNotFoundException) {
             null
         }
 

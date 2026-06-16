@@ -27,6 +27,7 @@ import eu.kanade.presentation.components.SearchToolbar
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.source.AsyncCatalogueFilterSource
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.source.sourceItemOrientation
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreenModel
 import eu.kanade.tachiyomi.ui.browse.source.browse.FilterUiState
 import eu.kanade.tachiyomi.ui.browse.source.browse.SourceFilterDialog
@@ -123,7 +124,10 @@ data class MigrateSourceSearchScreen(
                 BrowseSourceContent(
                     source = screenModel.source,
                     mangaList = mangaList,
-                    columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
+                    columns = screenModel.getColumnsPreference(
+                        LocalConfiguration.current.orientation,
+                        screenModel.source.sourceItemOrientation(),
+                    ),
                     displayMode = screenModel.displayMode,
                     snackbarHostState = snackbarHostState,
                     contentPadding = paddingValues,
@@ -131,7 +135,7 @@ data class MigrateSourceSearchScreen(
                         val source = screenModel.source as? HttpSource ?: return@BrowseSourceContent
                         navigator.push(
                             WebViewScreen(
-                                url = source.baseUrl,
+                                url = source.getHomeUrl(),
                                 initialTitle = source.name,
                                 sourceId = source.id,
                             ),

@@ -1,10 +1,10 @@
 package tachiyomi.data.category
 
+import app.cash.sqldelight.async.coroutines.awaitAsList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import tachiyomi.data.ActiveProfileProvider
-import tachiyomi.data.Database
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.category.model.CategoryUpdate
@@ -67,7 +67,7 @@ class CategoryRepositoryImpl(
 
         return handler.await {
             categoriesQueries.getAnimeCategoryMappings(profileProvider.activeProfileId, animeIds)
-                .executeAsList()
+                .awaitAsList()
                 .groupBy(
                     keySelector = { it.anime_id },
                     valueTransform = { it.category_id },
@@ -88,26 +88,28 @@ class CategoryRepositoryImpl(
 
     override suspend fun updatePartial(update: CategoryUpdate) {
         handler.await {
-            updatePartialBlocking(update)
+            categoriesQueries.update(
+                name = update.name,
+                order = update.order,
+                flags = update.flags,
+                categoryId = update.id,
+                profileId = profileProvider.activeProfileId,
+            )
         }
     }
 
     override suspend fun updatePartial(updates: List<CategoryUpdate>) {
         handler.await(inTransaction = true) {
-            for (update in updates) {
-                updatePartialBlocking(update)
+            updates.forEach { update ->
+                categoriesQueries.update(
+                    name = update.name,
+                    order = update.order,
+                    flags = update.flags,
+                    categoryId = update.id,
+                    profileId = profileProvider.activeProfileId,
+                )
             }
         }
-    }
-
-    private fun Database.updatePartialBlocking(update: CategoryUpdate) {
-        categoriesQueries.update(
-            name = update.name,
-            order = update.order,
-            flags = update.flags,
-            categoryId = update.id,
-            profileId = profileProvider.activeProfileId,
-        )
     }
 
     override suspend fun updateAllFlags(flags: Long?) {

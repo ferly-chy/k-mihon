@@ -1,5 +1,6 @@
 package tachiyomi.data.manga
 
+import app.cash.sqldelight.async.coroutines.awaitAsList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import tachiyomi.data.ActiveProfileProvider
@@ -82,7 +83,7 @@ class MergedMangaRepositoryImpl(
         handler.await(inTransaction = true) {
             val profileId = profileProvider.activeProfileId
             val existing = merged_mangasQueries.getEntriesByTargetId(profileId, targetMangaId, ::mapMerge)
-                .executeAsList()
+                .awaitAsList()
             if (existing.isEmpty()) return@await
 
             val remainingIds = existing.map { it.mangaId }.filterNot { it in mangaIds }

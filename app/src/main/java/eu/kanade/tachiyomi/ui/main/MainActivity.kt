@@ -81,7 +81,7 @@ import eu.kanade.presentation.components.AppStateBanners
 import eu.kanade.presentation.components.DownloadedOnlyBannerBackgroundColor
 import eu.kanade.presentation.components.IncognitoModeBannerBackgroundColor
 import eu.kanade.presentation.components.IndexingBannerBackgroundColor
-import eu.kanade.presentation.more.settings.screen.browse.ExtensionReposScreen
+import eu.kanade.presentation.more.settings.screen.browse.ExtensionStoresScreen
 import eu.kanade.presentation.more.settings.screen.data.RestoreBackupScreen
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.DefaultNavigatorScreenTransition
@@ -536,7 +536,6 @@ class MainActivity : BaseActivity() {
             val uriHandler = LocalUriHandler.current
             val dismissSupportMessage = {
                 preferences.donationCampaignShown.set(true)
-                @Suppress("AssignedValueIsNeverRead")
                 showCampaign = false
             }
             AdaptiveSheet(
@@ -642,7 +641,6 @@ class MainActivity : BaseActivity() {
             try {
                 val firstInstallTime = packageManager.getPackageInfo(packageName, 0).firstInstallTime
                 val eligibleTime = Instant.fromEpochMilliseconds(firstInstallTime).plus(6 * 30.days)
-                @Suppress("AssignedValueIsNeverRead")
                 showCampaign = (Clock.System.now() >= eligibleTime && !preferences.donationCampaignShown.get())
             } catch (_: PackageManager.NameNotFoundException) {
             }
@@ -777,11 +775,11 @@ class MainActivity : BaseActivity() {
                     navigator.popUntilRoot()
                     navigator.push(RestoreBackupScreen(intent.data.toString()))
                 }
-                // Deep link to add extension repo
-                else if (intent.scheme == "tachiyomi" && intent.data?.host == "add-repo") {
+                // Deep link to add extension store
+                else if (intent.isAddExtensionStoreIntent()) {
                     intent.data?.getQueryParameter("url")?.let { repoUrl ->
                         navigator.popUntilRoot()
-                        navigator.push(ExtensionReposScreen(repoUrl))
+                        navigator.push(ExtensionStoresScreen(repoUrl))
                     }
                 }
                 null
@@ -817,7 +815,7 @@ class MainActivity : BaseActivity() {
                 }
             }
 
-            extensionManager.scope.launchIO {
+            lifecycleScope.launchIO {
                 try {
                     extensionManager.checkForUpdates(applicationContext)
                 } catch (e: Exception) {
@@ -843,6 +841,11 @@ class MainActivity : BaseActivity() {
 
     private fun shouldSkipStartupProfileAuth(): Boolean {
         return securityPreferences.useAuthenticator.get() && SecureActivityDelegate.requireUnlock
+    }
+
+    private fun Intent.isAddExtensionStoreIntent(): Boolean {
+        return (scheme == "tachiyomi" && data?.host == "add-repo") ||
+            (scheme == "mihon" && data?.host == "extension-store")
     }
 
     companion object {

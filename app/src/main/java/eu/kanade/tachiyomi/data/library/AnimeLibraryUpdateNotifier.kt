@@ -26,6 +26,7 @@ import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
 import tachiyomi.core.common.Constants
 import tachiyomi.core.common.i18n.pluralStringResource
@@ -43,6 +44,7 @@ import java.text.NumberFormat
 
 class AnimeLibraryUpdateNotifier(
     private val context: Context,
+    private val scope: CoroutineScope = Injekt.get(),
     private val securityPreferences: SecurityPreferences = Injekt.get(),
     private val getMergedAnime: GetMergedAnime = Injekt.get(),
     private val getAnime: GetAnime = Injekt.get(),
@@ -162,7 +164,7 @@ class AnimeLibraryUpdateNotifier(
         }
 
         if (!securityPreferences.hideNotificationContent.get()) {
-            launchUI {
+            scope.launchUI {
                 context.notify(
                     childUpdates.map { update ->
                         NotificationManagerCompat.NotificationWithIdAndTag(

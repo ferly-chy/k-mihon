@@ -10,7 +10,7 @@ android {
 }
 
 dependencies {
-    implementation(projects.extensionsLib)
+    implementation(projects.sourceApi)
 
     implementation(libs.bundles.serialization)
 }

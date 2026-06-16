@@ -55,6 +55,7 @@ import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
+import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.channels.Channel
@@ -211,7 +212,7 @@ data object LibraryTab : Tab {
                     EmptyScreen(
                         stringRes = MR.strings.information_empty_library,
                         modifier = Modifier.padding(contentPadding),
-                        actions = persistentListOf(
+                        actions = listOf(
                             EmptyScreenAction(
                                 stringRes = MR.strings.getting_started_guide,
                                 icon = Icons.AutoMirrored.Outlined.HelpOutline,
@@ -353,9 +354,13 @@ internal fun MergeLibraryMangaDialog(
     onSelectTarget: (Long) -> Unit,
     onConfirm: () -> Unit,
 ) {
+    val entries: PersistentList<MergeEditorEntry> = dialog.entries
+        .map(LibraryScreenModel.MergeEntry::toMergeEditorEntry)
+        .toPersistentList()
+
     MergeEditorDialog(
         title = stringResource(MR.strings.action_merge),
-        entries = dialog.entries.map(LibraryScreenModel.MergeEntry::toMergeEditorEntry).toPersistentList(),
+        entries = entries,
         targetId = dialog.targetId,
         targetLocked = dialog.targetLocked,
         onDismissRequest = onDismissRequest,

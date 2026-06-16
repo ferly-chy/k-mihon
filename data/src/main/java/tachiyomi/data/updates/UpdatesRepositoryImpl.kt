@@ -44,7 +44,6 @@ class UpdatesRepositoryImpl(
                     profileId = profileId,
                     after = after,
                     limit = limit,
-                    // invert because unread in Kotlin -> read column in SQL
                     read = unread?.let { !it },
                     started = started?.toLong(),
                     bookmarked = bookmarked,
@@ -73,9 +72,9 @@ class UpdatesRepositoryImpl(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun mapUpdatesWithRelations(
-        @Suppress("UNUSED_PARAMETER")
-        profileId: Long,
+        @Suppress("UNUSED_PARAMETER") profileId: Long,
         mangaId: Long,
         mangaTitle: String,
         chapterId: Long,
@@ -111,5 +110,7 @@ class UpdatesRepositoryImpl(
             url = thumbnailUrl,
             lastModified = coverLastModified,
         ),
+        dateUpload = dateUpload,
+        excludedScanlator = excludedScanlator,
     )
 }
