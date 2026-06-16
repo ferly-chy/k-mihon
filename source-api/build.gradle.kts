@@ -30,7 +30,7 @@ kotlin {
 
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     dependencies {
-        implementation(projects.core.common)
+        api(projects.core.common)
 
         api(libs.kotlinx.serialization.json)
         api(libs.kotlinx.serialization.jsonOkio)
