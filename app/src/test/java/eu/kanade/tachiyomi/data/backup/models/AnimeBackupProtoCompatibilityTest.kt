@@ -21,7 +21,7 @@ class AnimeBackupProtoCompatibilityTest {
                 backupSources = emptyList(),
                 backupPreferences = emptyList(),
                 backupSourcePreferences = emptyList(),
-                backupExtensionRepo = emptyList(),
+                backupExtensionStores = emptyList(),
                 backupProfiles = emptyList(),
                 activeProfileUuid = null,
             ),
@@ -61,7 +61,7 @@ class AnimeBackupProtoCompatibilityTest {
         @ProtoNumber(101) val backupSources: List<BackupSource> = emptyList(),
         @ProtoNumber(104) val backupPreferences: List<BackupPreference> = emptyList(),
         @ProtoNumber(105) val backupSourcePreferences: List<BackupSourcePreferences> = emptyList(),
-        @ProtoNumber(106) val backupExtensionRepo: List<BackupExtensionRepos> = emptyList(),
+        @ProtoNumber(106) val backupExtensionStores: List<BackupExtensionStore> = emptyList(),
         @ProtoNumber(200) val backupProfiles: List<ProfileScopedBackup> = emptyList(),
         @ProtoNumber(201) val activeProfileUuid: String? = null,
     )

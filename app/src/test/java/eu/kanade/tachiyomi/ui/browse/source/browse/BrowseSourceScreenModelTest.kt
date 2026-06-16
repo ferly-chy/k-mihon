@@ -12,7 +12,11 @@ import eu.kanade.presentation.manga.components.rankMergeTargets
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -289,24 +293,36 @@ private fun manga(id: Long, title: String, sourceId: Long): Manga {
 private fun fakeSourceManager(): SourceManager {
     return object : SourceManager {
         override val isInitialized = MutableStateFlow(true)
-        override val catalogueSources = MutableStateFlow(
-            emptyList<eu.kanade.tachiyomi.source.CatalogueSource>(),
+        override val sources = MutableStateFlow(
+            emptyList<eu.kanade.tachiyomi.source.Source>(),
         ).asStateFlow()
 
         override fun get(sourceKey: Long): Source? = object : Source {
             override val id: Long = sourceKey
             override val lang: String = "en"
             override val name: String = "Source $sourceKey"
-            override suspend fun getMangaDetails(manga: SManga): SManga = error("Not used")
-            override suspend fun getChapterList(manga: SManga) = error("Not used")
-            override suspend fun getPageList(chapter: eu.kanade.tachiyomi.source.model.SChapter) = error("Not used")
+            override val supportsLatest: Boolean = false
+            override suspend fun getPopularManga(page: Int): MangasPage = error("Not used")
+            override suspend fun getLatestUpdates(page: Int): MangasPage = error("Not used")
+            override suspend fun getSearchManga(
+                page: Int,
+                query: String,
+                filters: FilterList,
+            ): MangasPage = error("Not used")
+            override suspend fun getMangaUpdate(
+                manga: SManga,
+                chapters: List<SChapter>,
+                fetchDetails: Boolean,
+                fetchChapters: Boolean,
+            ): SMangaUpdate = SMangaUpdate(manga, chapters)
+            override suspend fun getPageList(chapter: SChapter): List<Page> = error("Not used")
         }
 
         override fun getOrStub(sourceKey: Long): Source = get(sourceKey) ?: error("Missing source")
 
-        override fun getOnlineSources() = emptyList<eu.kanade.tachiyomi.source.online.HttpSource>()
+        override fun getAll() = emptyList<Source>()
 
-        override fun getCatalogueSources() = emptyList<eu.kanade.tachiyomi.source.CatalogueSource>()
+        override fun getOnlineSources() = emptyList<eu.kanade.tachiyomi.source.online.HttpSource>()
 
         override fun getStubSources() = emptyList<tachiyomi.domain.source.model.StubSource>()
     }

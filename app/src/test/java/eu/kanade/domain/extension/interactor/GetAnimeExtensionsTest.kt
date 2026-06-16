@@ -3,6 +3,7 @@ package eu.kanade.domain.extension.interactor
 import eu.kanade.tachiyomi.extension.model.Extension
 import eu.kanade.tachiyomi.extension.model.ExtensionType
 import io.kotest.matchers.collections.shouldContainExactly
+import mihon.domain.extension.model.ExtensionStore
 import org.junit.jupiter.api.Test
 
 class GetAnimeExtensionsTest {
@@ -54,9 +55,19 @@ class GetAnimeExtensionsTest {
         lang = "en",
         isNsfw = false,
         sources = emptyList(),
-        apkName = "$name.apk",
+        apkUrl = "https://example.com/$name.apk",
         iconUrl = "https://example.com/$name.png",
-        repoUrl = "https://example.com",
+        store = ExtensionStore(
+            indexUrl = "https://example.com/index.json",
+            name = "Test Store",
+            badgeLabel = "Test",
+            signingKey = "signingKey",
+            contact = ExtensionStore.Contact(
+                website = "https://example.com",
+                discord = null,
+            ),
+            isLegacy = false,
+        ),
     )
 
     private fun untrustedVideo(name: String) = Extension.Untrusted(

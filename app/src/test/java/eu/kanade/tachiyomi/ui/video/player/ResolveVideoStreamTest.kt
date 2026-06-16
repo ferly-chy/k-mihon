@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.data.anime.download.model.AnimeDownloadManifest
 import eu.kanade.tachiyomi.data.anime.download.model.DownloadedVideo
 import eu.kanade.tachiyomi.source.AnimeSource
 import eu.kanade.tachiyomi.source.AnimeSubtitleSource
+import eu.kanade.tachiyomi.source.model.SAnimeUpdate
 import eu.kanade.tachiyomi.source.model.VideoPlaybackData
 import eu.kanade.tachiyomi.source.model.VideoPlaybackSelection
 import eu.kanade.tachiyomi.source.model.VideoRequest
@@ -416,6 +417,13 @@ class ResolveVideoStreamTest {
     ) : AnimeSource {
         override val name: String = "Fake"
 
+        override suspend fun getAnimeUpdate(
+            anime: eu.kanade.tachiyomi.source.model.SAnime,
+            episodes: List<eu.kanade.tachiyomi.source.model.SEpisode>,
+            fetchDetails: Boolean,
+            fetchEpisodes: Boolean,
+        ): SAnimeUpdate = SAnimeUpdate(anime, episodes)
+
         override suspend fun getAnimeDetails(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")
 
         override suspend fun getEpisodeList(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")
@@ -437,6 +445,13 @@ class ResolveVideoStreamTest {
         private val subtitles: List<VideoSubtitle>,
     ) : AnimeSource, AnimeSubtitleSource {
         override val name: String = "Fake"
+
+        override suspend fun getAnimeUpdate(
+            anime: eu.kanade.tachiyomi.source.model.SAnime,
+            episodes: List<eu.kanade.tachiyomi.source.model.SEpisode>,
+            fetchDetails: Boolean,
+            fetchEpisodes: Boolean,
+        ): SAnimeUpdate = SAnimeUpdate(anime, episodes)
 
         override suspend fun getAnimeDetails(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")
 
@@ -465,6 +480,13 @@ class ResolveVideoStreamTest {
         private val streams: List<VideoStream>,
     ) : AnimeSource, AnimeSubtitleSource {
         override val name: String = "Fake"
+
+        override suspend fun getAnimeUpdate(
+            anime: eu.kanade.tachiyomi.source.model.SAnime,
+            episodes: List<eu.kanade.tachiyomi.source.model.SEpisode>,
+            fetchDetails: Boolean,
+            fetchEpisodes: Boolean,
+        ): SAnimeUpdate = SAnimeUpdate(anime, episodes)
 
         override suspend fun getAnimeDetails(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")
 

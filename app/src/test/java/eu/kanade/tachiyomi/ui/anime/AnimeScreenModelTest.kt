@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.data.anime.download.AnimeDownloadManager
 import eu.kanade.tachiyomi.source.AnimeScheduleSource
 import eu.kanade.tachiyomi.source.model.SAnime
 import eu.kanade.tachiyomi.source.model.SAnimeScheduleEpisode
+import eu.kanade.tachiyomi.source.model.SAnimeUpdate
 import eu.kanade.tachiyomi.source.model.SEpisode
 import eu.kanade.tachiyomi.source.model.VideoPlaybackData
 import eu.kanade.tachiyomi.source.model.VideoPlaybackSelection
@@ -1370,6 +1371,13 @@ class AnimeScreenModelTest {
         override val name: String = "Fake",
         override val lang: String = "en",
     ) : eu.kanade.tachiyomi.source.AnimeSource {
+        override suspend fun getAnimeUpdate(
+            anime: SAnime,
+            episodes: List<SEpisode>,
+            fetchDetails: Boolean,
+            fetchEpisodes: Boolean,
+        ): SAnimeUpdate = SAnimeUpdate(anime, episodes)
+
         override suspend fun getAnimeDetails(anime: SAnime): SAnime = anime
 
         override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> = emptyList()

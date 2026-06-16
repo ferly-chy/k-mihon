@@ -3,6 +3,7 @@
 package eu.kanade.tachiyomi.ui.anime
 
 import android.app.Application
+import eu.kanade.tachiyomi.source.model.SAnimeUpdate
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.matchers.shouldBe
 import io.mockk.mockk
@@ -2207,6 +2208,13 @@ class AnimeLibraryScreenModelTest {
         override val name: String = "Fake",
         override val lang: String = "en",
     ) : eu.kanade.tachiyomi.source.AnimeSource {
+        override suspend fun getAnimeUpdate(
+            anime: eu.kanade.tachiyomi.source.model.SAnime,
+            episodes: List<eu.kanade.tachiyomi.source.model.SEpisode>,
+            fetchDetails: Boolean,
+            fetchEpisodes: Boolean,
+        ): SAnimeUpdate = SAnimeUpdate(anime, episodes)
+
         override suspend fun getAnimeDetails(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")
 
         override suspend fun getEpisodeList(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")

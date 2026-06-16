@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.ui.browse.feed
 
 import eu.kanade.tachiyomi.source.AnimeSource
 import eu.kanade.tachiyomi.source.model.SAnime
+import eu.kanade.tachiyomi.source.model.SAnimeUpdate
 import eu.kanade.tachiyomi.source.model.SEpisode
 import eu.kanade.tachiyomi.source.model.VideoPlaybackData
 import eu.kanade.tachiyomi.source.model.VideoPlaybackSelection
@@ -200,6 +201,16 @@ private class RecordingAnimeSource(override val id: Long) : AnimeSource {
         private set
     var episodeListRequests = 0
         private set
+
+    override suspend fun getAnimeUpdate(
+        anime: SAnime,
+        episodes: List<SEpisode>,
+        fetchDetails: Boolean,
+        fetchEpisodes: Boolean,
+    ): SAnimeUpdate = SAnimeUpdate(anime, episodes).also {
+        if (fetchDetails) detailsRequests++
+        if (fetchEpisodes) episodeListRequests++
+    }
 
     override suspend fun getAnimeDetails(anime: SAnime): SAnime {
         detailsRequests++

@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.extension.api
 import android.content.Context
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.extension.model.Extension
+import eu.kanade.tachiyomi.extension.model.ExtensionType
 import eu.kanade.tachiyomi.extension.model.InstallStep
 import eu.kanade.tachiyomi.extension.model.LoadResult
 import eu.kanade.tachiyomi.extension.util.ExtensionLoader
@@ -142,4 +143,8 @@ internal class ExtensionApi {
 
         return updateCandidates.map { it.installed }
     }
+}
+
+internal fun extensionTypeFromRepoValue(value: String?): ExtensionType {
+    return ExtensionType.fromMetadataValue(value) ?: ExtensionType.MANGA
 }

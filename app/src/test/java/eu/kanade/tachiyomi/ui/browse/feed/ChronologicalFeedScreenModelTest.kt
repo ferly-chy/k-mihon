@@ -381,15 +381,15 @@ private fun fakeSourceManager(): SourceManager {
 
     return object : SourceManager {
         override val isInitialized = MutableStateFlow(true)
-        override val catalogueSources = MutableStateFlow(listOf(source)).asStateFlow()
+        override val sources = MutableStateFlow(listOf(source)).asStateFlow()
 
         override fun get(sourceKey: Long): Source? = source.takeIf { it.id == sourceKey }
 
         override fun getOrStub(sourceKey: Long): Source = get(sourceKey) ?: error("Missing source")
 
-        override fun getOnlineSources() = emptyList<eu.kanade.tachiyomi.source.online.HttpSource>()
+        override fun getAll() = listOf(source)
 
-        override fun getCatalogueSources() = listOf(source)
+        override fun getOnlineSources() = emptyList<eu.kanade.tachiyomi.source.online.HttpSource>()
 
         override fun getStubSources() = emptyList<tachiyomi.domain.source.model.StubSource>()
     }

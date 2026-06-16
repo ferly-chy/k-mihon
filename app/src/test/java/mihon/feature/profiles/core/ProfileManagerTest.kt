@@ -6,6 +6,13 @@ import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.extension.model.Extension
 import eu.kanade.tachiyomi.source.AnimeSource
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.source.model.SAnimeUpdate
+import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
@@ -166,13 +173,37 @@ private data class FakeMangaSource(
     override val id: Long,
     override val name: String,
     override val lang: String = "en",
-) : Source
+) : Source {
+    override val supportsLatest: Boolean = false
+
+    override suspend fun getPopularManga(page: Int): MangasPage = error("Not used")
+
+    override suspend fun getLatestUpdates(page: Int): MangasPage = error("Not used")
+
+    override suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage = error("Not used")
+
+    override suspend fun getMangaUpdate(
+        manga: SManga,
+        chapters: List<SChapter>,
+        fetchDetails: Boolean,
+        fetchChapters: Boolean,
+    ): SMangaUpdate = SMangaUpdate(manga, chapters)
+
+    override suspend fun getPageList(chapter: SChapter): List<Page> = error("Not used")
+}
 
 private data class FakeAnimeSource(
     override val id: Long,
     override val name: String,
     override val lang: String = "en",
 ) : AnimeSource {
+    override suspend fun getAnimeUpdate(
+        anime: eu.kanade.tachiyomi.source.model.SAnime,
+        episodes: List<eu.kanade.tachiyomi.source.model.SEpisode>,
+        fetchDetails: Boolean,
+        fetchEpisodes: Boolean,
+    ): SAnimeUpdate = SAnimeUpdate(anime, episodes)
+
     override suspend fun getAnimeDetails(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")
 
     override suspend fun getEpisodeList(anime: eu.kanade.tachiyomi.source.model.SAnime) = error("Not used")

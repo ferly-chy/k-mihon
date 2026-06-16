@@ -181,9 +181,19 @@ private fun List<LibraryPage>.applySortForTest(
 }
 
 private fun libraryItem(id: Long, title: String, dateAdded: Long): LibraryItem {
+    val libraryManga = libraryManga(id = id, title = title, dateAdded = dateAdded)
     return LibraryItem(
-        libraryManga = libraryManga(id = id, title = title, dateAdded = dateAdded),
+        libraryManga = libraryManga,
+        downloadCount = 0,
+        unreadCount = libraryManga.unreadCount,
+        isLocal = false,
         sourceName = "Source",
+        badges = LibraryItem.Badges(
+            downloadCount = 0,
+            unreadCount = libraryManga.unreadCount,
+            isLocal = false,
+            sourceLanguage = "",
+        ),
     )
 }
 
