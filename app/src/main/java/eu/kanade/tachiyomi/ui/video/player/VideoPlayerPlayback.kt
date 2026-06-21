@@ -336,17 +336,9 @@ internal fun ExoPlayer.resolveAppliedSubtitleSelection(
             }
         }
         is VideoPlayerSubtitleSelection.Embedded -> {
-            val group = currentTracks.groups.getOrNull(requested.groupIndex)
-            if (
-                group != null &&
-                group.getType() == C.TRACK_TYPE_TEXT &&
-                requested.trackIndex in 0 until group.length &&
-                group.isTrackSupported(requested.trackIndex)
-            ) {
-                embeddedSubtitleSelection(requested.groupIndex, requested.trackIndex, group)
-            } else {
-                VideoPlayerSubtitleSelection.None
-            }
+            matchingEmbeddedTextTrack(requested)
+                ?.let { match -> embeddedSubtitleSelection(match.groupIndex, match.trackIndex, match.group) }
+                ?: requested
         }
     }
 }
@@ -377,19 +369,14 @@ internal fun ExoPlayer.applySubtitleSelection(selection: VideoPlayerSubtitleSele
             }
         }
         is VideoPlayerSubtitleSelection.Embedded -> {
-            val group = currentTracks.groups.getOrNull(selection.groupIndex)
-            if (
-                group == null ||
-                group.getType() != C.TRACK_TYPE_TEXT ||
-                selection.trackIndex !in 0 until group.length ||
-                !group.isTrackSupported(selection.trackIndex)
-            ) {
+            val match = matchingEmbeddedTextTrack(selection)
+            if (match == null) {
                 builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 builder.setPreferredTextLanguage(null)
             } else {
                 builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
                 builder.setPreferredTextLanguage(null)
-                builder.setOverrideForType(TrackSelectionOverride(group.getMediaTrackGroup(), selection.trackIndex))
+                builder.setOverrideForType(TrackSelectionOverride(match.group.getMediaTrackGroup(), match.trackIndex))
             }
         }
     }
@@ -495,8 +482,33 @@ private fun rewriteDownloadedHlsContentUri(baseUri: Uri, candidateUri: Uri): Uri
     )
 }
 
-private fun embeddedSubtitleChoiceKey(groupIndex: Int, trackIndex: Int): String {
+private fun legacyEmbeddedSubtitleChoiceKey(groupIndex: Int, trackIndex: Int): String {
     return "embedded:$groupIndex:$trackIndex"
+}
+
+private fun embeddedSubtitleChoiceKey(format: Format): String {
+    return "embedded:${format.subtitleTrackFingerprint()}"
+}
+
+private fun ExoPlayer.matchingEmbeddedTextTrack(
+    selection: VideoPlayerSubtitleSelection.Embedded,
+): EmbeddedTextTrackMatch? {
+    return currentTracks.groups.withIndex()
+        .asSequence()
+        .filter { (_, group) -> group.getType() == C.TRACK_TYPE_TEXT && group.isSupported() }
+        .mapNotNull { (groupIndex, group) ->
+            (0 until group.length)
+                .firstOrNull { trackIndex ->
+                    if (!group.isTrackSupported(trackIndex)) {
+                        return@firstOrNull false
+                    }
+                    val format = group.getTrackFormat(trackIndex)
+                    embeddedSubtitleChoiceKey(format) == selection.key ||
+                        legacyEmbeddedSubtitleChoiceKey(groupIndex, trackIndex) == selection.key
+                }
+                ?.let { trackIndex -> EmbeddedTextTrackMatch(groupIndex, group, trackIndex) }
+        }
+        .firstOrNull()
 }
 
 private fun ExoPlayer.matchingTextTrack(subtitle: VideoSubtitle): TrackSelectionOverride? {
@@ -536,7 +548,7 @@ private fun embeddedSubtitleSelection(
     return VideoPlayerSubtitleSelection.Embedded(
         groupIndex = groupIndex,
         trackIndex = trackIndex,
-        key = embeddedSubtitleChoiceKey(groupIndex, trackIndex),
+        key = embeddedSubtitleChoiceKey(format),
         label = buildEmbeddedSubtitleLabel(
             label = format.label,
             language = format.language,
@@ -548,6 +560,12 @@ private fun embeddedSubtitleSelection(
         isForced = format.selectionFlags and C.SELECTION_FLAG_FORCED != 0,
     )
 }
+
+private data class EmbeddedTextTrackMatch(
+    val groupIndex: Int,
+    val group: Tracks.Group,
+    val trackIndex: Int,
+)
 
 private fun buildEmbeddedSubtitleLabel(
     label: String?,

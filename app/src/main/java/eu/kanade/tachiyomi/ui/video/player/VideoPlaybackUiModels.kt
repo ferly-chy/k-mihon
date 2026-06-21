@@ -185,7 +185,10 @@ internal fun resolveSourceSubtitleSelection(
         VideoPlayerSubtitleSelection.None -> VideoPlayerSubtitleSelection.None
         VideoPlayerSubtitleSelection.Default -> defaultSubtitleSelection(subtitles)
         is VideoPlayerSubtitleSelection.External -> {
-            subtitles.firstOrNull { subtitleChoiceKey(it) == subtitleChoiceKey(requested.subtitle) }
+            (
+                subtitles.firstOrNull { subtitlePreferenceKey(it) == subtitlePreferenceKey(requested.subtitle) }
+                    ?: subtitles.firstOrNull { subtitleChoiceKey(it) == subtitleChoiceKey(requested.subtitle) }
+                )
                 ?.let(VideoPlayerSubtitleSelection::External)
                 ?: defaultSubtitleSelection(subtitles)
         }
