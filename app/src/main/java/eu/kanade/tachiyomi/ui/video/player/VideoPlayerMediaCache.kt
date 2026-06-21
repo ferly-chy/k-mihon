@@ -1,23 +1,42 @@
 package eu.kanade.tachiyomi.ui.video.player
 
 import android.app.Application
+import android.text.format.Formatter
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import eu.kanade.tachiyomi.util.storage.DiskUtil
 import java.io.File
 
 @OptIn(markerClass = [UnstableApi::class])
 class VideoPlayerMediaCache(
-    context: Application,
+    private val context: Application,
 ) {
-    val cache: SimpleCache by lazy {
+    private val cacheDir = File(context.cacheDir, CACHE_DIRECTORY_NAME)
+    private val cacheDelegate = lazy {
         SimpleCache(
-            File(context.cacheDir, CACHE_DIRECTORY_NAME),
+            cacheDir,
             LeastRecentlyUsedCacheEvictor(MAX_CACHE_BYTES),
             StandaloneDatabaseProvider(context),
         )
+    }
+
+    val cache: SimpleCache
+        get() = cacheDelegate.value
+
+    val readableSize: String
+        get() = Formatter.formatFileSize(context, DiskUtil.getDirectorySize(cacheDir))
+
+    fun clear(): Int {
+        return if (cacheDelegate.isInitialized()) {
+            val keys = cache.keys.toList()
+            keys.forEach(cache::removeResource)
+            keys.size
+        } else {
+            cacheDir.listFiles()?.count { it.deleteRecursively() } ?: 0
+        }
     }
 
     private companion object {

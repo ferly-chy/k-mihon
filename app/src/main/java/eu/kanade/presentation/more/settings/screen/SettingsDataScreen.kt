@@ -54,11 +54,13 @@ import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreJob
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.export.LibraryExporter
 import eu.kanade.tachiyomi.data.export.LibraryExporter.ExportOptions
+import eu.kanade.tachiyomi.ui.video.player.VideoPlayerMediaCache
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.feature.profiles.core.ProfileManager
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.core.common.util.lang.launchNonCancellable
@@ -68,6 +70,7 @@ import tachiyomi.domain.backup.service.BackupPreferences
 import tachiyomi.domain.library.service.GlobalLibraryPreferences
 import tachiyomi.domain.manga.interactor.GetFavorites
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.profile.model.ProfileType
 import tachiyomi.domain.storage.service.StoragePreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.TextButton
@@ -75,6 +78,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import androidx.compose.runtime.collectAsState as collectFlowAsState
 
 object SettingsDataScreen : SearchableSettings {
 
@@ -280,10 +284,27 @@ object SettingsDataScreen : SearchableSettings {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val libraryPreferences = remember { Injekt.get<GlobalLibraryPreferences>() }
+        val profileManager = remember { Injekt.get<ProfileManager>() }
+        val activeProfile by profileManager.activeProfile.collectFlowAsState()
+        val activeProfileType = activeProfile?.type ?: ProfileType.MANGA
 
         val chapterCache = remember { Injekt.get<ChapterCache>() }
+        val videoPlayerMediaCache = remember { Injekt.get<VideoPlayerMediaCache>() }
         var cacheReadableSizeSema by remember { mutableIntStateOf(0) }
-        val cacheReadableSize = remember(cacheReadableSizeSema) { chapterCache.readableSize }
+        val cacheReadableSize = remember(cacheReadableSizeSema, activeProfileType) {
+            when (activeProfileType) {
+                ProfileType.MANGA -> chapterCache.readableSize
+                ProfileType.ANIME -> videoPlayerMediaCache.readableSize
+            }
+        }
+        val clearCacheTitle = when (activeProfileType) {
+            ProfileType.MANGA -> MR.strings.pref_clear_chapter_cache
+            ProfileType.ANIME -> MR.strings.pref_clear_anime_playback_cache
+        }
+        val autoClearCacheTitle = when (activeProfileType) {
+            ProfileType.MANGA -> MR.strings.pref_auto_clear_chapter_cache
+            ProfileType.ANIME -> MR.strings.pref_auto_clear_anime_playback_cache
+        }
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_storage_usage),
@@ -301,12 +322,15 @@ object SettingsDataScreen : SearchableSettings {
                 },
 
                 Preference.PreferenceItem.TextPreference(
-                    title = stringResource(MR.strings.pref_clear_chapter_cache),
+                    title = stringResource(clearCacheTitle),
                     subtitle = stringResource(MR.strings.used_cache, cacheReadableSize),
                     onClick = {
                         scope.launchNonCancellable {
                             try {
-                                val deletedFiles = chapterCache.clear()
+                                val deletedFiles = when (activeProfileType) {
+                                    ProfileType.MANGA -> chapterCache.clear()
+                                    ProfileType.ANIME -> videoPlayerMediaCache.clear()
+                                }
                                 withUIContext {
                                     context.toast(context.stringResource(MR.strings.cache_deleted, deletedFiles))
                                     cacheReadableSizeSema++
@@ -320,7 +344,7 @@ object SettingsDataScreen : SearchableSettings {
                 ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = libraryPreferences.autoClearChapterCache,
-                    title = stringResource(MR.strings.pref_auto_clear_chapter_cache),
+                    title = stringResource(autoClearCacheTitle),
                 ),
             ),
         )

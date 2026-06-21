@@ -40,6 +40,8 @@ import tachiyomi.domain.anime.service.sortedForReading
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
+private const val PRELOAD_MAX_AGE_MS = 30_000L
+
 class VideoPlayerViewModel @JvmOverloads constructor(
     private val savedState: SavedStateHandle,
     private val resolveVideoStream: VideoStreamResolver = Injekt.get<ResolveVideoStream>(),
@@ -55,6 +57,7 @@ class VideoPlayerViewModel @JvmOverloads constructor(
     private val videoHistoryRepository: AnimeHistoryRepository = Injekt.get(),
     private val resolveDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val persistenceDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val now: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow<State>(State.Loading)
@@ -102,6 +105,17 @@ class VideoPlayerViewModel @JvmOverloads constructor(
         if (mutableState.value !is State.Error) return
         viewModelScope.launch {
             resolvePlayback(initial = true)
+        }
+    }
+
+    fun retryCurrentPlayback(positionMs: Long) {
+        val current = mutableState.value as? State.Ready ?: return
+        viewModelScope.launch {
+            resolvePlayback(
+                selection = current.playback.persistedSourceSelection,
+                preservePositionMs = positionMs.coerceAtLeast(0L),
+                showLoading = false,
+            )
         }
     }
 
@@ -343,10 +357,13 @@ class VideoPlayerViewModel @JvmOverloads constructor(
         val current = mutableState.value as? State.Ready ?: return
         val nextEpisodeId = current.nextEpisodeId ?: return
         val selection = current.playback.persistedSourceSelection
+        val existingPreload = nextEpisodePreload
         if (
-            nextEpisodePreload?.key?.visibleAnimeId == current.visibleAnimeId &&
-            nextEpisodePreload?.key?.episodeId == nextEpisodeId &&
-            nextEpisodePreload?.key?.selection == selection.normalized()
+            existingPreload != null &&
+            existingPreload.key.visibleAnimeId == current.visibleAnimeId &&
+            existingPreload.key.episodeId == nextEpisodeId &&
+            existingPreload.key.selection == selection.normalized() &&
+            existingPreload.isFresh(now())
         ) {
             return
         }
@@ -378,6 +395,7 @@ class VideoPlayerViewModel @JvmOverloads constructor(
             nextEpisodePreload = PreloadedEpisode(
                 key = preloadKey,
                 result = result,
+                createdAtMillis = now(),
             )
             cacheSelectionResult(nextEpisodeId, result.playbackData.selection, result)
         }
@@ -437,6 +455,7 @@ class VideoPlayerViewModel @JvmOverloads constructor(
                     preview = VideoPlaybackPreviewState(),
                     isSourceSwitching = false,
                     requestedSubtitle = requestedSubtitle,
+                    playbackRevision = (previousReady?.playbackRevision ?: -1L) + 1L,
                 )
             }
             is ResolveVideoStream.Result.Error -> {
@@ -520,6 +539,9 @@ class VideoPlayerViewModel @JvmOverloads constructor(
         applySelectionJob?.cancel()
         previewSelectionJob?.cancel()
         nextEpisodePreloadJob?.cancel()
+        if (nextEpisodePreload?.key?.episodeId != targetEpisodeId) {
+            nextEpisodePreload = null
+        }
         clearSelectionResultCache(preserveNextEpisodeId = targetEpisodeId)
         ownerAnimeId = animeEpisodeRepository.getEpisodeById(targetEpisodeId)?.animeId ?: ownerAnimeId
         savedState[OWNER_VIDEO_ID_KEY] = ownerAnimeId
@@ -535,6 +557,7 @@ class VideoPlayerViewModel @JvmOverloads constructor(
         preview: VideoPlaybackPreviewState,
         isSourceSwitching: Boolean,
         requestedSubtitle: VideoPlayerSubtitleSelection? = null,
+        playbackRevision: Long,
     ): State.Ready {
         val resumePositionMs = preservePositionMs
             ?: videoPlaybackStateRepository.getByEpisodeId(result.episode.id)?.positionMs
@@ -575,6 +598,7 @@ class VideoPlayerViewModel @JvmOverloads constructor(
             playback = playback,
             resumePositionMs = resumePositionMs,
             isSourceSwitching = isSourceSwitching,
+            playbackRevision = playbackRevision,
         )
     }
 
@@ -649,6 +673,10 @@ class VideoPlayerViewModel @JvmOverloads constructor(
         selection: VideoPlaybackSelection?,
     ): ResolveVideoStream.Result.Success? {
         val preload = nextEpisodePreload ?: return null
+        if (!preload.isFresh(now())) {
+            nextEpisodePreload = null
+            return null
+        }
         val selectionKey = selection?.normalized() ?: preload.key.selection
         return preload
             .takeIf {
@@ -737,6 +765,7 @@ class VideoPlayerViewModel @JvmOverloads constructor(
             val playback: VideoPlaybackUiState,
             val resumePositionMs: Long,
             val isSourceSwitching: Boolean = false,
+            val playbackRevision: Long = 0L,
         ) : State {
             val episodeListItems: List<AnimeEpisodeListEntry>
                 get() = buildAnimeEpisodeDisplayData(
@@ -804,7 +833,12 @@ private data class SelectionCacheKey(
 private data class PreloadedEpisode(
     val key: PreloadedEpisodeKey,
     val result: ResolveVideoStream.Result.Success,
+    val createdAtMillis: Long,
 )
+
+private fun PreloadedEpisode.isFresh(now: Long): Boolean {
+    return now - createdAtMillis <= PRELOAD_MAX_AGE_MS
+}
 
 private data class PreloadedEpisodeKey(
     val visibleAnimeId: Long,

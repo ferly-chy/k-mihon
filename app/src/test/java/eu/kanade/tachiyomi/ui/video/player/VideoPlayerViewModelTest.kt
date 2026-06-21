@@ -233,6 +233,71 @@ class VideoPlayerViewModelTest {
     }
 
     @Test
+    fun `expired next episode preload is resolved again before playback`() = runTest(dispatcher) {
+        var now = 0L
+        val playbackRepository = FakeAnimePlaybackStateRepository(existingState = null)
+        val historyRepository = FakeAnimeHistoryRepository()
+        val resolver = ChangingVideoStreamResolver()
+        val viewModel = VideoPlayerViewModel(
+            savedState = SavedStateHandle(),
+            resolveVideoStream = resolver,
+            animePlaybackPreferencesRepository = FakeAnimePlaybackPreferencesRepository(),
+            animeEpisodeRepository = FakeAnimeEpisodeRepository(
+                episodes = listOf(
+                    videoEpisode(id = 10L, animeId = 1L, sourceOrder = 1L),
+                    videoEpisode(id = 20L, animeId = 1L, sourceOrder = 2L),
+                ),
+            ),
+            videoPlaybackStateRepository = playbackRepository,
+            videoHistoryRepository = historyRepository,
+            resolveDispatcher = dispatcher,
+            persistenceDispatcher = dispatcher,
+            now = { now },
+        )
+
+        viewModel.init(animeId = 1L, episodeId = 10L)
+        advanceUntilIdle()
+        viewModel.preloadNextEpisode()
+        advanceUntilIdle()
+        now += 31_000L
+        viewModel.playNextEpisode()
+        advanceUntilIdle()
+
+        resolver.requests shouldBe listOf(10L, 20L, 20L)
+        val state = viewModel.state.value as VideoPlayerViewModel.State.Ready
+        state.episodeId shouldBe 20L
+        state.streamUrl shouldBe "https://cdn.example.com/20-3.m3u8"
+    }
+
+    @Test
+    fun `retry current playback re-resolves stream and preserves position`() = runTest(dispatcher) {
+        val playbackRepository = FakeAnimePlaybackStateRepository(existingState = null)
+        val historyRepository = FakeAnimeHistoryRepository()
+        val resolver = ChangingVideoStreamResolver()
+        val viewModel = VideoPlayerViewModel(
+            savedState = SavedStateHandle(),
+            resolveVideoStream = resolver,
+            animePlaybackPreferencesRepository = FakeAnimePlaybackPreferencesRepository(),
+            animeEpisodeRepository = FakeAnimeEpisodeRepository(episodes = emptyList()),
+            videoPlaybackStateRepository = playbackRepository,
+            videoHistoryRepository = historyRepository,
+            resolveDispatcher = dispatcher,
+            persistenceDispatcher = dispatcher,
+        )
+
+        viewModel.init(animeId = 1L, episodeId = 2L)
+        advanceUntilIdle()
+        viewModel.retryCurrentPlayback(positionMs = 12_345L)
+        advanceUntilIdle()
+
+        resolver.requests shouldBe listOf(2L, 2L)
+        val state = viewModel.state.value as VideoPlayerViewModel.State.Ready
+        state.episodeId shouldBe 2L
+        state.resumePositionMs shouldBe 12_345L
+        state.streamUrl shouldBe "https://cdn.example.com/2-2.m3u8"
+    }
+
+    @Test
     fun `session playback speed survives next episode navigation`() = runTest(dispatcher) {
         val playbackRepository = FakeAnimePlaybackStateRepository(existingState = null)
         val historyRepository = FakeAnimeHistoryRepository()
@@ -1440,6 +1505,60 @@ class VideoPlayerViewModelTest {
                 subtitles = emptyList(),
                 savedPreferences = AnimePlaybackPreferences(
                     animeId = animeId,
+                    dubKey = null,
+                    streamKey = null,
+                    sourceQualityKey = null,
+                    subtitleKey = null,
+                    playerQualityMode = PlayerQualityMode.AUTO,
+                    playerQualityHeight = null,
+                    updatedAt = 0L,
+                ),
+            )
+        }
+    }
+
+    private class ChangingVideoStreamResolver : VideoStreamResolver {
+        val requests = mutableListOf<Long>()
+
+        override suspend fun invoke(
+            animeId: Long,
+            episodeId: Long,
+            ownerAnimeId: Long,
+            selection: VideoPlaybackSelection?,
+        ): ResolveVideoStream.Result {
+            requests += episodeId
+            val video = AnimeTitle.create().copy(
+                id = animeId,
+                source = 99L,
+                title = "Video $animeId",
+                initialized = true,
+                url = "/video/$animeId",
+            )
+            val episode = AnimeEpisode.create().copy(
+                id = episodeId,
+                animeId = ownerAnimeId,
+                url = "/episode/$episodeId",
+                name = "Episode $episodeId",
+                episodeNumber = episodeId.toDouble(),
+            )
+            val stream = VideoStream(
+                request = VideoRequest(url = "https://cdn.example.com/$episodeId-${requests.size}.m3u8"),
+                label = "Auto",
+                type = VideoStreamType.HLS,
+            )
+
+            return ResolveVideoStream.Result.Success(
+                visibleAnime = video,
+                ownerAnime = video.copy(id = ownerAnimeId),
+                episode = episode,
+                playbackData = VideoPlaybackData(
+                    selection = selection ?: VideoPlaybackSelection(),
+                    streams = listOf(stream),
+                ),
+                stream = stream,
+                subtitles = emptyList(),
+                savedPreferences = AnimePlaybackPreferences(
+                    animeId = ownerAnimeId,
                     dubKey = null,
                     streamKey = null,
                     sourceQualityKey = null,
