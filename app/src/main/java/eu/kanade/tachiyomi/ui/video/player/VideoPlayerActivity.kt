@@ -93,8 +93,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import logcat.LogPriority
 import mihon.core.common.CustomPreferences
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
@@ -132,6 +134,31 @@ private const val SEEK_PREVIEW_MIN_DELTA_MS = 2_000L
 private const val SEEK_PREVIEW_MAX_WIDTH = 320
 private const val SEEK_PREVIEW_MAX_HEIGHT = 180
 private const val MEDIA_SESSION_ID = "anime_player"
+
+private fun PlaybackException.toDetailedPlaybackMessage(): String {
+    val directCause = cause
+    val rootCause = generateSequence(directCause) { it.cause }.lastOrNull()
+    return buildList {
+        add(errorCodeName)
+        message?.takeIf { it.isNotBlank() }?.let(::add)
+        directCause?.formatForPlaybackError()?.let(::add)
+        rootCause
+            ?.takeIf { it !== directCause }
+            ?.formatForPlaybackError(prefix = "Caused by")
+            ?.let(::add)
+    }
+        .distinct()
+        .joinToString(separator = "\n")
+        .ifBlank { "Playback error" }
+}
+
+private fun Throwable.formatForPlaybackError(prefix: String = "Cause"): String {
+    return listOfNotNull(
+        prefix,
+        this::class.simpleName,
+        message?.takeIf { it.isNotBlank() },
+    ).joinToString(": ")
+}
 
 class VideoPlayerActivity : BaseActivity() {
 
@@ -378,10 +405,14 @@ class VideoPlayerActivity : BaseActivity() {
                 var seekPreviewFailed by remember(current.episodeId, current.streamUrl, subtitlePayloadKey) {
                     mutableStateOf(false)
                 }
-                var playerErrorMessage by remember(current.episodeId, current.streamUrl, subtitlePayloadKey) {
+                var playerErrorMessage by remember(
+                    current.episodeId,
+                    current.streamUrl,
+                    current.playbackRevision,
+                    subtitlePayloadKey,
+                ) {
                     mutableStateOf<String?>(null)
                 }
-                var playbackRetrySequence by remember { mutableStateOf(0L) }
                 var lastSeekPreviewRequestAtMs by remember(current.episodeId, current.streamUrl, subtitlePayloadKey) {
                     mutableStateOf(0L)
                 }
@@ -448,7 +479,7 @@ class VideoPlayerActivity : BaseActivity() {
                 val latestTemporarySpeedBoostActive by rememberUpdatedState(temporarySpeedBoostActive)
                 val initialSettingsDraft = remember(current.playback) { current.playback.toSettingsDraft() }
                 val currentPlayer =
-                    remember(current.episodeId, current.streamUrl, subtitlePayloadKey, playbackRetrySequence) {
+                    remember(current.episodeId, current.streamUrl, current.playbackRevision, subtitlePayloadKey) {
                         buildVideoPlayer(
                             context = context,
                             networkHelper = networkHelper,
@@ -478,7 +509,11 @@ class VideoPlayerActivity : BaseActivity() {
 
                                     override fun onPlayerError(error: PlaybackException) {
                                         startupOverlayVisible = false
-                                        playerErrorMessage = error.message ?: "Playback error"
+                                        playerErrorMessage = error.toDetailedPlaybackMessage()
+                                        logcat(LogPriority.ERROR, error) {
+                                            "VideoPlayer: playback failed episodeId=${current.episodeId} " +
+                                                "stream=${current.streamLabel} code=${error.errorCodeName}"
+                                        }
                                     }
 
                                     override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -659,7 +694,7 @@ class VideoPlayerActivity : BaseActivity() {
                     }
                 }
 
-                LaunchedEffect(current.episodeId, current.streamUrl, subtitlePayloadKey, playbackRetrySequence) {
+                LaunchedEffect(current.episodeId, current.streamUrl, current.playbackRevision, subtitlePayloadKey) {
                     playerErrorMessage = null
                     startupOverlayVisible = true
                     settingsVisible = false
@@ -731,6 +766,7 @@ class VideoPlayerActivity : BaseActivity() {
                 val seekPreviewPlayer = remember(
                     current.episodeId,
                     current.streamUrl,
+                    current.playbackRevision,
                     seekPreviewEnabled,
                 ) {
                     if (!seekPreviewEnabled) {
@@ -1414,7 +1450,7 @@ class VideoPlayerActivity : BaseActivity() {
                             message = playerErrorMessage!!,
                             onBack = ::finish,
                             onRetry = {
-                                playbackRetrySequence += 1L
+                                viewModel.retryCurrentPlayback(playbackSnapshot.positionMs)
                             },
                             onSettings = {
                                 settingsVisible = true

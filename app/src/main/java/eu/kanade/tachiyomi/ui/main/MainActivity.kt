@@ -101,6 +101,7 @@ import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.ui.more.OnboardingScreen
+import eu.kanade.tachiyomi.ui.video.player.VideoPlayerMediaCache
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.authenticate
 import eu.kanade.tachiyomi.util.system.dpToPx
 import eu.kanade.tachiyomi.util.system.isNavigationBarNeedsScrim
@@ -155,6 +156,7 @@ class MainActivity : BaseActivity() {
 
     private val downloadCache: DownloadCache by injectLazy()
     private val chapterCache: ChapterCache by injectLazy()
+    private val videoPlayerMediaCache: VideoPlayerMediaCache by injectLazy()
     private val extensionManager: ExtensionManager by injectLazy()
 
     private val getIncognitoState: GetIncognitoState by injectLazy()
@@ -811,7 +813,10 @@ class MainActivity : BaseActivity() {
 
             if (globalLibraryPreferences.autoClearChapterCache.get()) {
                 lifecycleScope.launchIO {
-                    chapterCache.clear()
+                    when (profileManager.activeProfile.value?.type) {
+                        ProfileType.ANIME -> videoPlayerMediaCache.clear()
+                        else -> chapterCache.clear()
+                    }
                 }
             }
 

@@ -86,7 +86,7 @@ internal fun VideoPlayerErrorOverlay(
             modifier = Modifier.padding(24.dp),
         ) {
             Text(
-                text = stringResource(MR.strings.unknown_error),
+                text = stringResource(MR.strings.anime_playback_error),
                 color = Color.White,
                 style = MaterialTheme.typography.headlineSmall,
             )

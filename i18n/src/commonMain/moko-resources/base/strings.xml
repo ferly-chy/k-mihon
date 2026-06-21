@@ -637,10 +637,12 @@
     <string name="pref_storage_usage">Storage usage</string>
     <string name="available_disk_space_info">Available: %1$s / Total: %2$s</string>
     <string name="pref_clear_chapter_cache">Clear chapter cache</string>
+    <string name="pref_clear_anime_playback_cache">Clear playback cache</string>
     <string name="used_cache">Used: %1$s</string>
     <string name="cache_deleted">Cache cleared, %1$d files deleted</string>
     <string name="cache_delete_error">Error occurred while clearing</string>
     <string name="pref_auto_clear_chapter_cache">Clear chapter cache on app launch</string>
+    <string name="pref_auto_clear_anime_playback_cache">Clear playback cache on app launch</string>
     <string name="export">Export</string>
     <string name="library_list">Library List</string>
     <string name="library_exported">Library Exported</string>
@@ -816,6 +818,7 @@
     <string name="anime_playback_lock_controls">Lock controls</string>
     <string name="anime_playback_unlock_controls">Unlock controls</string>
     <string name="anime_playback_controls_locked">Controls locked</string>
+    <string name="anime_playback_error">Playback error</string>
     <string name="pref_category_player">Player</string>
     <string name="pref_enable_anime_picture_in_picture">Picture-in-Picture</string>
     <string name="pref_enable_anime_picture_in_picture_summary">Automatically keep anime playback in a floating window when leaving the app</string>
