@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.extension.util.ExtensionInstaller.UserActionBehavior
 import eu.kanade.tachiyomi.extension.util.ExtensionLoader
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted.Companion.WhileSubscribed
@@ -50,13 +51,15 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class ExtensionManager(
     private val context: Context,
-    private val scope: CoroutineScope,
     private val preferences: SourcePreferences = Injekt.get(),
     private val globalPreferences: GlobalSourcePreferences = Injekt.get(),
     private val trustExtension: TrustExtension = Injekt.get(),
     private val profileDatabase: ProfileDatabase = Injekt.get(),
     private val profileStore: ProfileAwareStore = Injekt.get(),
 ) {
+
+    val scope = CoroutineScope(SupervisorJob())
+
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
@@ -68,7 +71,7 @@ class ExtensionManager(
     /**
      * The installer which installs, updates and uninstalls the extensions.
      */
-    private val installer by lazy { ExtensionInstaller(context, scope) }
+    private val installer by lazy { ExtensionInstaller(context) }
 
     private val iconMap = mutableMapOf<String, Drawable>()
 
