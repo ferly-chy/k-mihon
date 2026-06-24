@@ -1,6 +1,7 @@
 package mihon.data.extension.model
 
 import android.annotation.SuppressLint
+import eu.kanade.tachiyomi.extension.model.ExtensionType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -38,6 +39,7 @@ data class NetworkExtensionStore(
         @ProtoNumber(6) val versionName: String,
         @ProtoNumber(7) val contentWarning: ContentWarning = ContentWarning.SAFE,
         @ProtoNumber(8) val sources: List<Source>,
+        @ProtoNumber(9) val type: String? = null,
     )
 
     @Serializable
@@ -91,25 +93,48 @@ data class NetworkExtensionStore(
 fun ExtensionList.toAvailableExtensions(store: ExtensionStore): List<DomainExtension.Available> {
     return extensions.map { extension ->
         val lang = extension.sources.map { it.language }.toSet()
-        DomainExtension.AvailableManga(
-            name = extension.name,
-            pkgName = extension.packageName,
-            apkUrl = extension.resources.apkUrl,
-            iconUrl = extension.resources.iconUrl,
-            libVersion = extension.extensionLib.toDouble(),
-            versionCode = extension.versionCode,
-            versionName = extension.versionName,
-            lang = if (lang.size == 1) lang.first() else "all",
-            isNsfw = extension.contentWarning >= ContentWarning.MIXED,
-            sources = extension.sources.map { source ->
-                DomainExtension.AvailableManga.Source(
-                    id = source.id,
-                    name = source.name,
-                    lang = source.language,
-                    baseUrl = source.homeUrl,
-                )
-            },
-            store = store,
-        )
+        when (ExtensionType.fromMetadataValue(extension.type) ?: ExtensionType.MANGA) {
+            ExtensionType.MANGA -> DomainExtension.AvailableManga(
+                name = extension.name,
+                pkgName = extension.packageName,
+                apkUrl = extension.resources.apkUrl,
+                iconUrl = extension.resources.iconUrl,
+                libVersion = extension.extensionLib.toDouble(),
+                versionCode = extension.versionCode,
+                versionName = extension.versionName,
+                lang = if (lang.size == 1) lang.first() else "all",
+                isNsfw = extension.contentWarning >= ContentWarning.MIXED,
+                sources = extension.sources.map { source ->
+                    DomainExtension.AvailableManga.Source(
+                        id = source.id,
+                        name = source.name,
+                        lang = source.language,
+                        baseUrl = source.homeUrl,
+                    )
+                },
+                store = store,
+            )
+
+            ExtensionType.ANIME -> DomainExtension.AvailableAnime(
+                name = extension.name,
+                pkgName = extension.packageName,
+                apkUrl = extension.resources.apkUrl,
+                iconUrl = extension.resources.iconUrl,
+                libVersion = extension.extensionLib.toDouble(),
+                versionCode = extension.versionCode,
+                versionName = extension.versionName,
+                lang = if (lang.size == 1) lang.first() else "all",
+                isNsfw = extension.contentWarning >= ContentWarning.MIXED,
+                sources = extension.sources.map { source ->
+                    DomainExtension.AvailableAnime.Source(
+                        id = source.id,
+                        name = source.name,
+                        lang = source.language,
+                        baseUrl = source.homeUrl,
+                    )
+                },
+                store = store,
+            )
+        }
     }
 }
