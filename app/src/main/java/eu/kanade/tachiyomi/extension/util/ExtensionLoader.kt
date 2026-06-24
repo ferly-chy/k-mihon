@@ -55,6 +55,11 @@ internal object ExtensionLoader {
     private const val METADATA_SOURCE_FACTORY = "tachiyomi.extension.factory"
     private const val METADATA_EXTENSION_TYPE = "tachiyomi.extension.type"
     private const val METADATA_NSFW = "tachiyomi.extension.nsfw"
+
+    private const val METADATA_NAME = "tachiyomix.name"
+    private const val METADATA_EXTENSION_LIB = "tachiyomix.extensionLib"
+    private const val METADATA_CONTENT_WARNING = "tachiyomix.contentWarning"
+
     const val LIB_VERSION_MIN = "1.4"
     const val LIB_VERSION_MAX = "1.10"
 
@@ -234,7 +239,7 @@ internal object ExtensionLoader {
         val appInfo = pkgInfo.applicationInfo!!
         val pkgName = pkgInfo.packageName
 
-        val extName = pkgManager.getApplicationLabel(appInfo).toString()
+        val extName = (appInfo.metaData.getString(METADATA_NAME) ?: pkgManager.getApplicationLabel(appInfo).toString())
             .removePrefix("Tachiyomi: ")
             .removePrefix("K-Mihon: ")
         val versionName = pkgInfo.versionName
@@ -246,9 +251,10 @@ internal object ExtensionLoader {
         }
 
         // Validate lib version
-        val libVersionName = versionName.substringBeforeLast('.')
+        val libVersionName = appInfo.metaData.getDouble(METADATA_EXTENSION_LIB).takeUnless { it == 0.0 }?.toString()
+            ?: versionName.substringBeforeLast('.')
         val libVersion = libVersionName.toDoubleOrNull()
-        if (libVersion == null || !isLibVersionCompatible(versionName)) {
+        if (libVersion == null || !isLibVersionNameCompatible(libVersionName)) {
             logcat(LogPriority.WARN) {
                 "Lib version is $libVersionName, while only versions " +
                     "$LIB_VERSION_MIN to $LIB_VERSION_MAX are allowed"
@@ -256,6 +262,7 @@ internal object ExtensionLoader {
             return LoadResult.Error
         }
 
+        val extensionType = appInfo.extensionType()
         val signatures = getSignatures(pkgInfo)
         if (signatures.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "Package $pkgName isn't signed" }
@@ -275,8 +282,8 @@ internal object ExtensionLoader {
             return LoadResult.Untrusted(extension)
         }
 
-        val extensionType = appInfo.extensionType()
-        val isNsfw = appInfo.metaData.getInt(METADATA_NSFW) == 1
+        val isNsfw = appInfo.metaData.getInt(METADATA_CONTENT_WARNING) > 0 ||
+            appInfo.metaData.getInt(METADATA_NSFW) == 1
         if (!loadNsfwSource && isNsfw) {
             logcat(LogPriority.WARN) { "NSFW extension $pkgName not allowed" }
             return LoadResult.Error
@@ -424,7 +431,11 @@ internal object ExtensionLoader {
     }
 
     fun isLibVersionCompatible(versionName: String): Boolean {
-        val libVersion = parseVersionNameAsLibVersion(versionName) ?: return false
+        return isLibVersionNameCompatible(versionName.substringBeforeLast('.'))
+    }
+
+    private fun isLibVersionNameCompatible(versionName: String): Boolean {
+        val libVersion = LibVersion.parse(versionName) ?: return false
         val minVersion = LibVersion.parse(LIB_VERSION_MIN) ?: return false
         val maxVersion = LibVersion.parse(LIB_VERSION_MAX) ?: return false
         return libVersion >= minVersion && libVersion <= maxVersion

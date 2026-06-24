@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import tachiyomi.core.common.Constants
+import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.anime.interactor.GetMergedAnime
 import tachiyomi.domain.anime.model.AnimeEpisodeUpdate
 import tachiyomi.domain.anime.repository.AnimeEpisodeRepository
@@ -264,7 +265,7 @@ class NotificationReceiver : BroadcastReceiver() {
         val downloadPreferences: DownloadPreferences = Injekt.get()
         val sourceManager: SourceManager = Injekt.get()
 
-        async(scope, Dispatchers.IO) {
+        launchIO {
             val toUpdate = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
                 .map {
                     val chapter = it.copy(read = true)
@@ -290,8 +291,8 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param mangaId id of manga
      */
     private fun downloadChapters(chapterUrls: Array<String>, mangaId: Long) {
-        async(scope, Dispatchers.IO) {
-            val manga = getManga.await(mangaId) ?: return@async
+        launchIO {
+            val manga = getManga.await(mangaId) ?: return@launchIO
             val chapters = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }
             downloadManager.downloadChapters(manga, chapters)
         }
@@ -341,7 +342,6 @@ class NotificationReceiver : BroadcastReceiver() {
             }
         }
     }
-
     companion object {
         private const val NAME = "NotificationReceiver"
 

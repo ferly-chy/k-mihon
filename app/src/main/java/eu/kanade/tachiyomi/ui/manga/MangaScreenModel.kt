@@ -445,7 +445,6 @@ class MangaScreenModel(
                 )
                 val chapterLoader = ChapterLoader(
                     context = context,
-                    scope = screenModelScope,
                     downloadManager = downloadManager,
                     downloadProvider = downloadProvider,
                     manga = latestManga,

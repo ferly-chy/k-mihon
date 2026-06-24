@@ -1,9 +1,12 @@
 package mihon.data.extension.model
 
 import android.annotation.SuppressLint
+import eu.kanade.tachiyomi.extension.model.ExtensionType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.protobuf.ProtoNumber
+import mihon.data.extension.model.NetworkExtensionStore.ContentWarning
+import mihon.data.extension.model.NetworkExtensionStore.ExtensionList
 import mihon.domain.extension.model.ExtensionStore
 import eu.kanade.tachiyomi.extension.model.Extension as DomainExtension
 
@@ -14,13 +17,17 @@ data class NetworkExtensionStore(
     @ProtoNumber(2) val badgeLabel: String,
     @ProtoNumber(3) val signingKey: String,
     @ProtoNumber(4) val contact: Contact,
-    @ProtoNumber(5) val extensions: List<Extension>,
+    @ProtoNumber(101) val extensionList: ExtensionList?,
+    @ProtoNumber(102) val extensionListUrl: String?,
 ) : BaseNetworkExtensionStore {
     @Serializable
     data class Contact(
         @ProtoNumber(1) val website: String,
         @ProtoNumber(2) val discord: String?,
     )
+
+    @Serializable
+    data class ExtensionList(@ProtoNumber(1) val extensions: List<Extension>)
 
     @Serializable
     data class Extension(
@@ -30,7 +37,9 @@ data class NetworkExtensionStore(
         @ProtoNumber(4) val extensionLib: String,
         @ProtoNumber(5) val versionCode: Long,
         @ProtoNumber(6) val versionName: String,
-        @ProtoNumber(7) val sources: List<Source>,
+        @ProtoNumber(7) val contentWarning: ContentWarning = ContentWarning.SAFE,
+        @ProtoNumber(8) val sources: List<Source>,
+        @ProtoNumber(9) val type: String? = null,
     )
 
     @Serializable
@@ -46,27 +55,23 @@ data class NetworkExtensionStore(
         @ProtoNumber(3) val language: String,
         @ProtoNumber(4) val homeUrl: String = "",
         @ProtoNumber(5) val mirrorUrls: List<String> = emptyList(),
-        @ProtoNumber(6) val contentRating: ContentRating = ContentRating.SAFE,
+        // @ProtoNumber(6) val contentWarning: ContentWarning = ContentWarning.SAFE,
         @ProtoNumber(7) val message: String? = null,
     )
 
     @Suppress("Unused")
-    enum class ContentRating {
+    enum class ContentWarning {
         @ProtoNumber(0)
-        @JsonNames("CONTENT_RATING_SAFE")
+        @JsonNames("CONTENT_WARNING_SAFE")
         SAFE,
 
         @ProtoNumber(1)
-        @JsonNames("CONTENT_RATING_SUGGESTIVE")
-        SUGGESTIVE,
+        @JsonNames("CONTENT_WARNING_MIXED")
+        MIXED,
 
         @ProtoNumber(2)
-        @JsonNames("CONTENT_RATING_EROTICA")
-        EROTICA,
-
-        @ProtoNumber(3)
-        @JsonNames("CONTENT_RATING_PORNOGRAPHIC")
-        PORNOGRAPHIC,
+        @JsonNames("CONTENT_WARNING_NSFW")
+        NSFW,
     }
 
     override fun toExtensionStore(indexUrl: String): ExtensionStore {
@@ -80,13 +85,16 @@ data class NetworkExtensionStore(
                 discord = contact.discord,
             ),
             isLegacy = false,
+            extensionListUrl = extensionListUrl,
         )
     }
+}
 
-    fun toAvailableExtensions(store: ExtensionStore): List<DomainExtension.Available> {
-        return extensions.map { extension ->
-            val lang = extension.sources.map { it.language }.toSet()
-            DomainExtension.AvailableManga(
+fun ExtensionList.toAvailableExtensions(store: ExtensionStore): List<DomainExtension.Available> {
+    return extensions.map { extension ->
+        val lang = extension.sources.map { it.language }.toSet()
+        when (ExtensionType.fromMetadataValue(extension.type) ?: ExtensionType.MANGA) {
+            ExtensionType.MANGA -> DomainExtension.AvailableManga(
                 name = extension.name,
                 pkgName = extension.packageName,
                 apkUrl = extension.resources.apkUrl,
@@ -95,9 +103,30 @@ data class NetworkExtensionStore(
                 versionCode = extension.versionCode,
                 versionName = extension.versionName,
                 lang = if (lang.size == 1) lang.first() else "all",
-                isNsfw = extension.sources.maxOfOrNull { it.contentRating } == ContentRating.PORNOGRAPHIC,
+                isNsfw = extension.contentWarning >= ContentWarning.MIXED,
                 sources = extension.sources.map { source ->
                     DomainExtension.AvailableManga.Source(
+                        id = source.id,
+                        name = source.name,
+                        lang = source.language,
+                        baseUrl = source.homeUrl,
+                    )
+                },
+                store = store,
+            )
+
+            ExtensionType.ANIME -> DomainExtension.AvailableAnime(
+                name = extension.name,
+                pkgName = extension.packageName,
+                apkUrl = extension.resources.apkUrl,
+                iconUrl = extension.resources.iconUrl,
+                libVersion = extension.extensionLib.toDouble(),
+                versionCode = extension.versionCode,
+                versionName = extension.versionName,
+                lang = if (lang.size == 1) lang.first() else "all",
+                isNsfw = extension.contentWarning >= ContentWarning.MIXED,
+                sources = extension.sources.map { source ->
+                    DomainExtension.AvailableAnime.Source(
                         id = source.id,
                         name = source.name,
                         lang = source.language,

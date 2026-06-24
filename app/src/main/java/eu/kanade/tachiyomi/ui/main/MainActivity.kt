@@ -101,9 +101,11 @@ import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.ui.more.OnboardingScreen
+import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.ui.video.player.VideoPlayerMediaCache
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.authenticate
 import eu.kanade.tachiyomi.util.system.dpToPx
+import eu.kanade.tachiyomi.util.system.isBenchmarkBuildType
 import eu.kanade.tachiyomi.util.system.isNavigationBarNeedsScrim
 import eu.kanade.tachiyomi.util.system.updaterEnabled
 import eu.kanade.tachiyomi.util.view.setComposeContent
@@ -413,9 +415,11 @@ class MainActivity : BaseActivity() {
 
                     HandleOnNewIntent(context = context, navigator = navigator)
 
-                    CheckForUpdates()
-                    ShowOnboarding()
-                    ShowDonationCampaign()
+                    if (!isBenchmarkBuildType) {
+                        CheckForUpdates()
+                        ShowOnboarding()
+                        ShowDonationCampaign()
+                    }
                 }
             } else {
                 ProfileGateContent(
@@ -749,6 +753,11 @@ class MainActivity : BaseActivity() {
                     navigator.popUntilRoot()
                 }
                 tab
+            }
+            Intent.ACTION_APPLICATION_PREFERENCES -> {
+                navigator.popUntilRoot()
+                navigator.push(SettingsScreen())
+                null
             }
             Intent.ACTION_SEARCH, Intent.ACTION_SEND, "com.google.android.gms.actions.SEARCH_ACTION" -> {
                 // If the intent match the "standard" Android search intent

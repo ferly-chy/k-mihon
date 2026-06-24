@@ -2,8 +2,6 @@ package eu.kanade.tachiyomi.di
 
 import android.app.Application
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import app.cash.sqldelight.db.SqlDriver
 import com.eygraber.sqldelight.androidx.driver.AndroidxSqliteConfiguration
@@ -33,9 +31,6 @@ import eu.kanade.tachiyomi.ui.video.player.ResolveVideoStream
 import eu.kanade.tachiyomi.ui.video.player.VideoPlayerMediaCache
 import eu.kanade.tachiyomi.ui.video.player.VideoStreamResolver
 import eu.kanade.tachiyomi.util.logging.AppLogStore
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.plus
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import mihon.feature.profiles.core.ProfileAnimeSourcePreferenceProvider
@@ -148,18 +143,16 @@ class AppModule(val app: Application) : InjektModule {
             ProtoBuf
         }
 
-        addSingletonFactory<CoroutineScope> { ProcessLifecycleOwner.get().lifecycleScope + SupervisorJob() }
-
         addSingletonFactory { ChapterCache(app, get()) }
         addSingletonFactory { CoverCache(app) }
         addSingletonFactory { AppLogStore(app) }
 
-        addSingletonFactory { NetworkHelper(app, get(), get()) }
+        addSingletonFactory { NetworkHelper(app, get()) }
         addSingletonFactory { JavaScriptEngine(app) }
 
-        addSingletonFactory<SourceManager> { AndroidSourceManager(app, get(), get(), get()) }
+        addSingletonFactory<SourceManager> { AndroidSourceManager(app, get(), get()) }
         addSingletonFactory<AnimeSourceManager> { AndroidAnimeSourceManager(get()) }
-        addSingletonFactory { ExtensionManager(app, get()) }
+        addSingletonFactory { ExtensionManager(app) }
         addSingletonFactory { ResolveVideoStream(get(), get(), get()) }
         addSingletonFactory<VideoStreamResolver> { get<ResolveVideoStream>() }
         addSingletonFactory { VideoPlayerMediaCache(app) }
@@ -169,8 +162,8 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { AnimeDownloadCache(app) }
         addSingletonFactory { AnimeDownloader(get(), get(), get(), get(), get(), get()) }
         addSingletonFactory { AnimeDownloadManager(app, get(), get(), get(), get()) }
-        addSingletonFactory { DownloadManager(app, get()) }
-        addSingletonFactory { DownloadCache(app, get()) }
+        addSingletonFactory { DownloadManager(app) }
+        addSingletonFactory { DownloadCache(app) }
 
         addSingletonFactory { TrackerManager() }
         addSingletonFactory { DelayedTrackingStore(app) }
@@ -180,7 +173,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { AndroidStorageFolderProvider(app) }
         addSingletonFactory { LocalSourceFileSystem(get()) }
         addSingletonFactory { LocalCoverManager(app, get()) }
-        addSingletonFactory { StorageManager(app, get(), get()) }
+        addSingletonFactory { StorageManager(app, get()) }
 
         // Asynchronously init expensive components for a faster cold start
         ContextCompat.getMainExecutor(app).execute {
